@@ -1,0 +1,62 @@
+name: hakku_mobile
+description: "Aplikasi Pendamping Hukum Digital Warga Indonesia"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management & DI
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigasi
+  go_router: ^14.2.7
+
+  # Jaringan & API
+  dio: ^5.7.0
+
+  # Penyimpanan Offline-First
+  hive_flutter: ^1.1.0
+
+  # Akses Kamera, Galeri, & Berkas
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
+
+  # Notifikasi & Keamanan Biometrik
+  flutter_local_notifications: ^17.2.2
+  local_auth: ^2.2.0
+
+  # PDF, Cetak, & Berbagi
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  share_plus: ^10.0.2
+
+  # UI & Efek
+  intl: ^0.20.3
+  confetti: ^0.7.0
+  speech_to_text: ^7.0.0
+  url_launcher: ^6.3.0
+  flutter_animate: ^4.5.0
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.12
+  riverpod_generator: ^2.4.2
+  json_serializable: ^6.8.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/fonts/
