@@ -218,7 +218,7 @@ export function CompensationCalculator({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-xs font-semibold text-indigo-800 border border-indigo-200">
               <Calculator className="w-3.5 h-3.5 text-indigo-700" aria-hidden="true" />
-              <span>Inovasi 2 • Kalkulator Simulasi Hak Normatif</span>
+              <span>Simulasi Hak Normatif Ketenagakerjaan</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-brand-text tracking-tight">
               Kalkulator Pesangon & Kompensasi PHK (PP 35/2021)
@@ -599,6 +599,49 @@ export function CompensationCalculator({
                   ) : (
                     <Link
                       href="/dokumen"
+                      onClick={() => {
+                        if (typeof window !== "undefined") {
+                          const calcPayload = {
+                            originalStory: `Saya bekerja dengan status ${
+                              employmentType === "pkwt"
+                                ? "Karyawan Kontrak (PKWT)"
+                                : "Karyawan Tetap (PKWTT)"
+                            } selama ${result.tenureFormatted} dengan upah bulanan ${formatRupiah(
+                              result.monthlySalary
+                            )}. Sehubungan dengan ${
+                              result.reasonLabel
+                            }, saya memohon perundingan bipartit terkait pemenuhan hak normatif senilai total ${formatRupiah(
+                              result.grandTotal
+                            )} sesuai PP No. 35 Tahun 2021.`,
+                            category: "labor",
+                            categoryLabel: "Ketenagakerjaan",
+                            urgencyLevel: "normal",
+                            knownFacts: [
+                              `Status hubungan kerja: ${
+                                employmentType === "pkwt"
+                                  ? "PKWT (Kontrak)"
+                                  : "PKWTT (Tetap)"
+                              } dengan masa kerja ${result.tenureFormatted}.`,
+                              `Dasar perhitungan upah: ${formatRupiah(
+                                result.monthlySalary
+                              )} / bulan (${result.reasonLabel}).`,
+                              ...result.breakdown.map(
+                                (b) =>
+                                  `${b.title}: ${formatRupiah(b.amount)} (${b.formula} — ${b.legalBasis}).`
+                              ),
+                              `Total estimasi hak normatif sesuai PP No. 35/2021: ${formatRupiah(
+                                result.grandTotal
+                              )}.`,
+                            ],
+                            unknownFacts: [],
+                            clarifications: [],
+                          };
+                          sessionStorage.setItem(
+                            "hakku_calc_draft_payload",
+                            JSON.stringify(calcPayload)
+                          );
+                        }
+                      }}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-brand-primary hover:bg-brand-primary-hover text-white transition-colors shadow-2xs min-touch-target"
                     >
                       <FileText className="w-3.5 h-3.5" aria-hidden="true" />

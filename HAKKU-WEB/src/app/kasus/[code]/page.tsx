@@ -42,7 +42,9 @@ function CaseWorkspaceContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     if (!code) return;
@@ -95,22 +97,69 @@ function CaseWorkspaceContent() {
     }
   };
 
+  const handleStatusChange = async (
+    newStatus: "active" | "awaiting_help" | "resolved" | "closed"
+  ) => {
+    if (!caseDetails || isUpdatingStatus) return;
+    setIsUpdatingStatus(true);
+    const prevStatus = caseDetails.caseRecord.status;
+
+    setCaseDetails((prev) =>
+      prev
+        ? {
+            ...prev,
+            caseRecord: { ...prev.caseRecord, status: newStatus },
+          }
+        : null
+    );
+
+    try {
+      const res = await fetch(`/api/cases/${encodeURIComponent(code)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        setCaseDetails((prev) =>
+          prev
+            ? {
+                ...prev,
+                caseRecord: { ...prev.caseRecord, status: prevStatus },
+              }
+            : null
+        );
+      }
+    } catch {
+      setCaseDetails((prev) =>
+        prev
+          ? {
+              ...prev,
+              caseRecord: { ...prev.caseRecord, status: prevStatus },
+            }
+          : null
+      );
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const handleDeleteCase = async () => {
     setIsDeleting(true);
+    setDeleteError("");
     try {
       const res = await fetch(`/api/cases/${encodeURIComponent(code)}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        router.push("/?deleted=true");
+        setShowDeleteModal(false);
+        router.push("/kasus");
       } else {
-        alert("Gagal menghapus perkara dari server.");
+        setDeleteError("Gagal menghapus perkara dari server. Silakan coba lagi.");
       }
     } catch {
-      alert("Terjadi kesalahan jaringan saat menghapus perkara.");
+      setDeleteError("Terjadi gangguan jaringan saat menghapus perkara.");
     } finally {
       setIsDeleting(false);
-      setShowDeleteModal(false);
     }
   };
 
@@ -136,12 +185,20 @@ function CaseWorkspaceContent() {
           <p className="text-xs text-brand-muted leading-relaxed">
             {errorMsg || "Nomor referensi perkara yang Anda tuju tidak terdaftar atau telah dihapus oleh pemiliknya."}
           </p>
-          <Link
-            href="/pendampingan"
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-brand-primary hover:bg-brand-primary-hover rounded-lg transition-colors"
-          >
-            <span>Mulai Pendampingan Baru</span>
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <Link
+              href="/kasus"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-brand-text bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <span>Daftar Berkas Perkara</span>
+            </Link>
+            <Link
+              href="/pendampingan"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-brand-primary hover:bg-brand-primary-hover rounded-lg transition-colors"
+            >
+              <span>Mulai Pendampingan Baru</span>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -157,12 +214,36 @@ function CaseWorkspaceContent() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-brand-border pb-4 print:hidden">
           <Breadcrumbs
             items={[
-              { label: "Ruang Kerja", href: "/akun" },
+              { label: "Berkas Perkara", href: "/kasus" },
               { label: `Perkara #${caseRecord.caseCode || code}` },
             ]}
           />
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="case-status-select" className="sr-only">
+              Status Perkara
+            </label>
+            <select
+              id="case-status-select"
+              value={caseRecord.status || "active"}
+              disabled={isUpdatingStatus}
+              onChange={(e) =>
+                handleStatusChange(
+                  e.target.value as
+                    | "active"
+                    | "awaiting_help"
+                    | "resolved"
+                    | "closed"
+                )
+              }
+              className="px-3 py-2 text-xs font-semibold text-brand-text bg-white border border-brand-border rounded-lg shadow-2xs focus:outline-none focus:border-brand-primary cursor-pointer"
+            >
+              <option value="active">Status: Dalam Proses</option>
+              <option value="awaiting_help">Status: Menunggu Mediasi / LBH</option>
+              <option value="resolved">Status: Selesai / Sepakat</option>
+              <option value="closed">Status: Diarsipkan</option>
+            </select>
+
             <button
               type="button"
               onClick={() => typeof window !== "undefined" && window.print()}
@@ -174,7 +255,10 @@ function CaseWorkspaceContent() {
 
             <button
               type="button"
-              onClick={() => setShowDeleteModal(true)}
+              onClick={() => {
+                setDeleteError("");
+                setShowDeleteModal(true);
+              }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-brand-danger bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -218,13 +302,13 @@ function CaseWorkspaceContent() {
           <div className="flex items-center gap-2 text-xs text-brand-muted">
             <Lock className="w-3.5 h-3.5 text-brand-success shrink-0" />
             <span>
-              Perkara privat • Tersimpan di sistem terenkripsi terisolasi • Hak privasi terjamin
+              Berkas perkara privat • Penyimpanan terisolasi sesuai UU PDP No. 27/2022
             </span>
           </div>
         </div>
 
         {/* Workspace Tab Selector */}
-        <div className="flex items-center gap-2 border-b border-brand-border pb-1 print:hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-brand-border pb-1 print:hidden">
           <button
             type="button"
             onClick={() => setWorkspaceTab("overview")}
@@ -248,9 +332,6 @@ function CaseWorkspaceContent() {
           >
             <FileText className="w-4 h-4 text-brand-primary" aria-hidden="true" />
             <span>Generator Draf Surat</span>
-            <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
-              Inovasi 1
-            </span>
           </button>
           <button
             type="button"
@@ -263,9 +344,6 @@ function CaseWorkspaceContent() {
           >
             <Calculator className="w-4 h-4 text-indigo-600" />
             <span>Kalkulator Hak Pesangon</span>
-            <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-1.5 py-0.2 rounded-full border border-indigo-200">
-              Inovasi 2
-            </span>
           </button>
           <button
             type="button"
@@ -278,9 +356,6 @@ function CaseWorkspaceContent() {
           >
             <ShieldCheck className="w-4 h-4 text-blue-600" />
             <span>Matriks Alat Bukti</span>
-            <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded-full border border-blue-200">
-              Inovasi 3
-            </span>
           </button>
         </div>
 
@@ -507,6 +582,11 @@ function CaseWorkspaceContent() {
             <p className="text-xs text-brand-muted leading-relaxed">
               Sesuai dengan <strong>Undang-Undang Pelindungan Data Pribadi (UU PDP No. 27/2022)</strong>, tindakan ini akan menghapus seluruh rekaman kronologi, fakta, evaluasi, dan checklist perkara <strong>{code}</strong> secara permanen dari server penyimpanan kami. Data tidak dapat dipulihkan.
             </p>
+            {deleteError && (
+              <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-brand-danger font-medium">
+                {deleteError}
+              </div>
+            )}
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"

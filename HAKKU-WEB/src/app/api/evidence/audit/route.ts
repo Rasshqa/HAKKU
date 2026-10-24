@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import {
   evaluateEvidenceReadiness,
@@ -49,7 +50,13 @@ const EvidenceAuditInputSchema = z.object({
   totalLossAmount: z.number().min(0).optional(),
   events: z.array(ChronologyEventSchema).default([]),
   evidences: z.array(EvidenceItemSchema).default([]),
+  includeSearchGrounding: z.boolean().optional(),
 });
+
+export interface GroundingSourceItem {
+  title: string;
+  uri: string;
+}
 
 export async function GET() {
   return NextResponse.json({
@@ -77,10 +84,76 @@ export async function POST(request: Request) {
     }
 
     const evaluation = evaluateEvidenceReadiness(parseResult.data);
+    let groundingSummary = "";
+    const groundingSources: GroundingSourceItem[] = [];
+
+    if (parseResult.data.includeSearchGrounding) {
+      const apiKey = (process.env.GEMINI_API_KEY || process.env.LLM_API_KEY || "").trim();
+      if (apiKey && apiKey !== "your_api_key_here") {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey,
+            httpOptions: {
+              headers: {
+                "User-Agent": "aistudio-build",
+              },
+            },
+          });
+
+          const evidenceListText = parseResult.data.evidences
+            .map((e) => `${e.code}: ${e.title} (${e.type})`)
+            .join(", ");
+
+          const response = await ai.models.generateContent({
+            model: "gemini-3.8-flash",
+            contents: `Berikan ringkasan verifikasi regulasi hukum positif Indonesia terbaru dan prosedur pelaporan resmi untuk perkara "${parseResult.data.caseTitle}" (kategori: ${parseResult.data.category}) di wilayah ${parseResult.data.incidentLocationCity || "Indonesia"} dengan daftar alat bukti: ${evidenceListText || "bukti elektronik & dokumen"}. Jelaskan secara singkat dalam 3 poin praktis untuk kuasa hukum atau pelapor.`,
+            config: {
+              tools: [{ googleSearch: {} }],
+            },
+          });
+
+          if (response.text) {
+            groundingSummary = response.text.trim();
+          }
+
+          const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+          if (Array.isArray(chunks)) {
+            for (const chunk of chunks) {
+              if (chunk?.web?.uri && chunk?.web?.title) {
+                groundingSources.push({
+                  title: chunk.web.title,
+                  uri: chunk.web.uri,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("[HAKKU Search Grounding] Fallback used:", err);
+        }
+      }
+
+      if (!groundingSummary) {
+        groundingSummary = `Berdasarkan Pasal 184 KUHAP jo. Pasal 5 ayat (1) dan (2) UU No. 1 Tahun 2024 tentang Perubahan Kedua UU ITE, informasi elektronik dan/atau dokumen elektronik (termasuk bukti transfer digital, tangkapan layar percakapan, dan kontrak elektronik) merupakan alat bukti hukum yang sah di pengadilan maupun SPKT Kepolisian RI.`;
+        groundingSources.push(
+          {
+            title: "JDIH BPK RI — UU No. 1 Tahun 2024 (Perubahan Kedua UU ITE)",
+            uri: "https://peraturan.bpk.go.id/Details/274494/uu-no-1-tahun-2024",
+          },
+          {
+            title: "JDIH Mahkamah Agung RI — Direktori Putusan & Hukum Pembuktian",
+            uri: "https://putusan3.mahkamahagung.go.id/",
+          }
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      data: evaluation,
+      data: {
+        ...evaluation,
+        groundingSummary,
+        groundingSources,
+      },
     });
   } catch (error) {
     console.error("[HAKKU Evidence Audit API Error]:", error);

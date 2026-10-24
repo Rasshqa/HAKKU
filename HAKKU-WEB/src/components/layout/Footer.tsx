@@ -1,137 +1,133 @@
 import React from "react";
 import Link from "next/link";
-import { Scale, ShieldCheck, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-white border-t border-brand-border mt-auto">
-      {/* Disclaimer Section as required by FR-09 */}
-      <div className="bg-gray-50 border-b border-brand-border py-6 px-4 sm:px-6">
+    <footer className="bg-black text-white border-t-2 border-black mt-auto print:hidden">
+      {/* Legal Disclaimer Strip */}
+      <div className="bg-[#0F172A] border-b border-white/10 py-6 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start gap-4">
-          <div className="p-2 bg-amber-100 text-brand-warning rounded-lg shrink-0">
+          <div className="p-2 bg-[#1B365D] text-white border border-white/20 rounded-lg shrink-0">
             <AlertCircle className="w-5 h-5" aria-hidden="true" />
           </div>
-          <div className="text-xs text-brand-muted leading-relaxed space-y-1">
-            <p className="font-semibold text-brand-text text-sm">
+          <div className="text-xs text-zinc-400 leading-relaxed space-y-1">
+            <p className="font-bold text-white text-sm">
               Pernyataan Batasan Layanan (Legal Disclaimer)
             </p>
             <p>
-              HAKKU adalah platform pendamping hukum digital yang bertujuan memberikan edukasi awal, merapikan fakta, dan memfasilitasi navigasi langkah hukum. HAKKU <strong>bukan kantor hukum, bukan advokat</strong>, dan tidak mewakili Anda dalam proses peradilan atau penyelidikan kepolisian.
-            </p>
-            <p>
-              Informasi yang dihasilkan tidak menjamin hasil akhir perkara dan tidak boleh ditafsirkan sebagai nasihat hukum formal yang mengikat. Setiap perkara memiliki keunikan fakta yang memerlukan konsultasi langsung dengan advokat berlisensi atau lembaga bantuan hukum resmi.
+              HAKKU adalah platform pendamping hukum digital yang bertujuan memberikan edukasi awal, merapikan fakta, dan memfasilitasi navigasi langkah hukum. HAKKU <strong className="text-white">bukan kantor hukum dan bukan advokat</strong>, serta tidak mewakili Anda dalam proses peradilan.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Main Footer Links */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      {/* Main Footer Grid */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8">
-          <div className="sm:col-span-2 md:col-span-2 space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded bg-brand-primary flex items-center justify-center text-white">
-                <Scale className="w-4 h-4" aria-hidden="true" />
-              </div>
-              <span className="font-bold text-base text-brand-text">HAKKU</span>
+          <div className="sm:col-span-2 md:col-span-2 space-y-4">
+            <div className="flex items-center gap-3">
+              <img
+                src="/hakki-icon.svg"
+                alt="Ikon Hakki HAKKU"
+                className="w-8 h-8 rounded-lg border border-white/20 shrink-0"
+              />
+              <span className="font-extrabold text-lg tracking-tight text-white">HAKKU</span>
             </div>
-            <p className="text-xs text-brand-muted max-w-sm">
-              Pahami Hakmu. Tentukan Langkahmu. Membantu masyarakat Indonesia mengakses informasi hukum berkeadilan dan terstruktur.
+            <p className="text-xs text-zinc-400 max-w-sm leading-relaxed">
+              Platform pendampingan hukum warga berbasis regulasi positif Republik Indonesia. Membantu memetakan hak normatif, mengaudit kelengkapan bukti, dan menyiapkan dokumen hukum secara terstruktur.
             </p>
-            <div className="flex items-center gap-2 text-xs text-brand-muted">
-              <ShieldCheck className="w-4 h-4 text-brand-success" />
-              <span>Privasi Terjaga • Sumber Hukum Terverifikasi</span>
+            <div className="pt-1">
+              <div className="w-6 h-0.5 bg-[#3B82F6] mb-2" />
+              <p className="font-mono text-[11px] tracking-widest text-zinc-300 uppercase">
+                PENDAMPING HUKUM WARGA
+              </p>
             </div>
           </div>
 
           <div>
-            <h3 className="text-xs font-semibold text-brand-text uppercase tracking-wider mb-3">
+            <h3 className="text-xs font-mono font-bold text-[#93C5FD] uppercase tracking-wider mb-3">
               Perangkat Hukum
             </h3>
-            <ul className="space-y-2 text-xs text-brand-muted">
+            <ul className="space-y-2 text-xs text-zinc-400">
               <li>
-                <Link href="/konsultasi" className="hover:text-brand-primary transition-colors">
-                  Wawancara Tanya AI
+                <Link href="/konsultasi" className="hover:text-white transition-colors">
+                  Ruang Wawancara Kasus
                 </Link>
               </li>
               <li>
-                <Link href="/dokumen" className="hover:text-brand-primary transition-colors">
-                  Draf Surat Formil
+                <Link href="/dokumen" className="hover:text-white transition-colors">
+                  Draf Surat Somasi & Bipartit
                 </Link>
               </li>
               <li>
-                <Link href="/kalkulator" className="hover:text-brand-primary transition-colors">
-                  Kalkulator Kompensasi
+                <Link href="/kalkulator" className="hover:text-white transition-colors">
+                  Kalkulator Pesangon PP 35/2021
                 </Link>
               </li>
               <li>
-                <Link href="/bukti" className="hover:text-brand-primary transition-colors">
-                  Audit Matriks Bukti
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-semibold text-brand-text uppercase tracking-wider mb-3">
-              Alur Pendampingan
-            </h3>
-            <ul className="space-y-2 text-xs text-brand-muted">
-              <li>
-                <Link href="/pendampingan" className="hover:text-brand-primary transition-colors">
-                  Ceritakan Masalah
-                </Link>
-              </li>
-              <li>
-                <Link href="/pendampingan?step=clarify" className="hover:text-brand-primary transition-colors">
-                  Klarifikasi Fakta
-                </Link>
-              </li>
-              <li>
-                <Link href="/pendampingan?step=review" className="hover:text-brand-primary transition-colors">
-                  Konfirmasi Ringkasan
-                </Link>
-              </li>
-              <li>
-                <Link href="/rujukan" className="hover:text-brand-primary transition-colors">
-                  Cari Bantuan & LBH
+                <Link href="/bukti" className="hover:text-white transition-colors">
+                  Matriks Alat Bukti (Pasal 184 KUHAP)
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-xs font-semibold text-brand-text uppercase tracking-wider mb-3">
-              Informasi & Ketentuan
+            <h3 className="text-xs font-mono font-bold text-[#93C5FD] uppercase tracking-wider mb-3">
+              Alur & Berkas
             </h3>
-            <ul className="space-y-2 text-xs text-brand-muted">
+            <ul className="space-y-2 text-xs text-zinc-400">
               <li>
-                <Link href="/tentang" className="hover:text-brand-primary transition-colors">
+                <Link href="/pendampingan" className="hover:text-white transition-colors">
+                  Pendampingan 6 Tahap
+                </Link>
+              </li>
+              <li>
+                <Link href="/kasus" className="hover:text-white transition-colors">
+                  Arsip & Pencarian Perkara
+                </Link>
+              </li>
+              <li>
+                <Link href="/rujukan" className="hover:text-white transition-colors">
+                  Direktori LBH & Posbankum
+                </Link>
+              </li>
+              <li>
+                <Link href="/akun" className="hover:text-white transition-colors">
+                  Akun & Ruang Kerja
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-mono font-bold text-[#93C5FD] uppercase tracking-wider mb-3">
+              Transparansi
+            </h3>
+            <ul className="space-y-2 text-xs text-zinc-400">
+              <li>
+                <Link href="/tentang" className="hover:text-white transition-colors">
                   Tentang HAKKU
                 </Link>
               </li>
               <li>
-                <Link href="/tentang#privasi" className="hover:text-brand-primary transition-colors">
-                  Kebijakan Privasi
+                <Link href="/tentang#privasi" className="hover:text-white transition-colors">
+                  Kebijakan Privasi (UU PDP)
                 </Link>
               </li>
               <li>
-                <Link href="/tentang#sumber" className="hover:text-brand-primary transition-colors">
-                  Sumber Hukum Terkelola
-                </Link>
-              </li>
-              <li>
-                <Link href="/tentang#kompetisi" className="hover:text-brand-primary transition-colors">
-                  Traspac Competition 2027
+                <Link href="/tentang#sumber" className="hover:text-white transition-colors">
+                  Korpus Hukum JDIH
                 </Link>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-brand-border mt-8 pt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-brand-muted">
-          <p>© 2026–2027 HAKKU. Dirancang untuk Traspac Competition 2027.</p>
-          <p>Dibuat dengan komitmen keselamatan & transparansi hukum.</p>
+        <div className="border-t border-white/10 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono text-zinc-400">
+          <p>© 2026–2027 HAKKU · DIGITAL LEGAL COMPANION</p>
+          <p>KEPATUHAN UU PDP NO. 27/2022 · SUMBER JDIH RESMI</p>
         </div>
       </div>
     </footer>

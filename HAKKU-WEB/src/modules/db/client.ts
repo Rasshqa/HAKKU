@@ -3,10 +3,15 @@ import { Pool } from "pg";
 let pool: Pool | null = null;
 
 export function getDatabasePool(): Pool | null {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL?.trim();
 
-  if (!databaseUrl || databaseUrl.includes("localhost:5432/hakku_db") && process.env.NODE_ENV !== "production") {
-    // Di lingkungan lokal tanpa server postgres aktif, kita biarkan null agar otomatis menggunakan in-memory persistence
+  if (
+    !databaseUrl ||
+    databaseUrl === "your_database_url_here" ||
+    (databaseUrl.includes("localhost:5432/hakku_db") &&
+      process.env.NODE_ENV !== "production")
+  ) {
+    return null;
   }
 
   if (!pool && databaseUrl) {
@@ -19,7 +24,7 @@ export function getDatabasePool(): Pool | null {
 
       pool = new Pool({
         connectionString: databaseUrl,
-        max: 20,
+        max: 10,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 3000,
         ssl: isRemote ? { rejectUnauthorized: false } : undefined,
@@ -37,9 +42,6 @@ export function getDatabasePool(): Pool | null {
   return pool;
 }
 
-/**
- * Memeriksa apakah database PostgreSQL dapat dihubungi
- */
 export async function testDatabaseConnection(): Promise<boolean> {
   const activePool = getDatabasePool();
   if (!activePool) return false;

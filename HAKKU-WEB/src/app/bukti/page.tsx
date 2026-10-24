@@ -23,7 +23,7 @@ export default function BuktiPage() {
             ]}
           />
           <span className="self-start sm:self-auto text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
-            Fitur Inovasi 3 • Hukum Pembuktian
+            Hukum Pembuktian • Pasal 184 KUHAP
           </span>
         </div>
 

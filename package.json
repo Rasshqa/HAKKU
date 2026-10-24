@@ -1,0 +1,15 @@
+{
+  "name": "hakku-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "HAKKU-WEB"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=HAKKU-WEB",
+    "build": "npm run build --workspace=HAKKU-WEB",
+    "start": "npm run start --workspace=HAKKU-WEB",
+    "lint": "npm run lint --workspace=HAKKU-WEB",
+    "typecheck": "npm run typecheck --workspace=HAKKU-WEB"
+  }
+}

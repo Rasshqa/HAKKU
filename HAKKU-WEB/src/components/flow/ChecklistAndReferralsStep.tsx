@@ -185,13 +185,13 @@ export function ChecklistAndReferralsStep({
         </div>
       )}
 
-      {/* Inovasi 1: Generator Draf Surat Hukum Siap Pakai */}
+      {/* Generator Draf Surat Hukum Siap Pakai */}
       <div className="bg-white border border-brand-border rounded-xl p-5 sm:p-6 shadow-xs space-y-4 print:hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-[11px] font-semibold text-amber-800 border border-amber-200">
               <FileText className="w-3.5 h-3.5 text-amber-700" aria-hidden="true" />
-              <span>Instrumen Formil HAKKU • Inovasi 1</span>
+              <span>Instrumen Dokumen Formil</span>
             </div>
             <h3 className="text-base sm:text-lg font-bold text-brand-text">
               Generator Draf Surat Hukum Siap Pakai

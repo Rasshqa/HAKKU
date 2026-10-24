@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import {
   ChatMessage,
@@ -38,22 +39,29 @@ export async function POST(request: NextRequest) {
     }
 
     const { mode } = parseResult.data;
-    // Ambil maksimal 20 pesan terakhir untuk konteks demi efisiensi dan keamanan token
     const messages = parseResult.data.messages.slice(-20) as ChatMessage[];
     const userMessages = messages.filter((m) => m.role === "user").map((m) => m.content);
     const lastUserMessage = userMessages[userMessages.length - 1] || "";
 
-    // 1. Susun evaluasi terstruktur hukum real-time
     const assessment = buildConsultationAssessment(userMessages, lastUserMessage);
 
-    // 2. Hubungi LLM jika API Key tersedia
-    const apiKey = process.env.LLM_API_KEY;
-    const model = process.env.LLM_MODEL_NAME || "gemini-2.0-flash";
+    const apiKey = (process.env.GEMINI_API_KEY || process.env.LLM_API_KEY || "").trim();
+    const model = "gemini-3.8-flash";
 
     let aiReplyText = "";
+    const groundingSources: { title: string; uri: string }[] = [];
 
     if (apiKey && apiKey !== "your_api_key_here") {
       try {
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              "User-Agent": "aistudio-build",
+            },
+          },
+        });
+
         const contents = messages.map((m) => ({
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: m.content }],
@@ -63,51 +71,42 @@ export async function POST(request: NextRequest) {
           mode === "interview"
             ? "WAWANCARA INTAKE HUKUM (Fokus menggali kronologi, pihak lawan, bukti, dan tuntutan secara runtut)"
             : "DISKUSI & PEMECAHAN MASALAH HUKUM (Fokus menjawab pertanyaan warga, membedah opsi strategi, dan mitigasi risiko)"
-        }\n\nRANAH HUKUM TERDETEKSI: ${assessment.categoryLabel} (${assessment.category})\nPASAL TERKAIT: ${assessment.articlesCited.map(a => `${a.articleLabel} - ${a.topic}`).join("; ")}`;
+        }\n\nRANAH HUKUM TERDETEKSI: ${assessment.categoryLabel} (${assessment.category})\nPASAL TERKAIT: ${assessment.articlesCited.map((a) => `${a.articleLabel} - ${a.topic}`).join("; ")}`;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-            model
-          )}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: systemWithMode }] },
-              contents,
-              generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 2500,
-              },
-            }),
-            signal: AbortSignal.timeout(25000),
-          }
-        );
+        const geminiRes = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            systemInstruction: systemWithMode,
+            temperature: 0.3,
+            tools: [{ googleSearch: {} }],
+          },
+        });
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const candidate = geminiData?.candidates?.[0];
-          let candidateText = candidate?.content?.parts?.[0]?.text;
-          if (candidateText) {
-            if (candidate?.finishReason === "MAX_TOKENS") {
-              candidateText += "\n\n(Catatan: Pembahasan telah mencapai batas panjang. Anda dapat menanyakan rincian pasal atau langkah tertentu untuk diuraikan lebih lanjut).";
+        if (geminiRes.text) {
+          aiReplyText = geminiRes.text;
+        }
+
+        const chunks = geminiRes.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (Array.isArray(chunks)) {
+          for (const chunk of chunks) {
+            if (chunk?.web?.uri && chunk?.web?.title) {
+              groundingSources.push({
+                title: chunk.web.title,
+                uri: chunk.web.uri,
+              });
             }
-            aiReplyText = candidateText;
           }
-        } else {
-          console.warn("[HAKKU AI] Gemini API HTTP status:", geminiRes.status);
         }
       } catch (err) {
-        console.warn("[HAKKU AI] Gagal memanggil LLM provider, beralih ke generator lokal:", err);
+        console.warn("[HAKKU AI] Gagal memanggil Gemini SDK, beralih ke generator lokal:", err);
       }
     }
 
-    // 3. Fallback cerdas jika LLM tidak dikonfigurasi atau offline
     if (!aiReplyText) {
       aiReplyText = generateRuleBasedLegalReply(lastUserMessage, assessment, mode);
     }
 
-    // 4. Post-process: strip emoji, markdown bold, and heading syntax
     aiReplyText = sanitizeResponse(aiReplyText);
 
     return NextResponse.json({
@@ -115,6 +114,7 @@ export async function POST(request: NextRequest) {
       data: {
         reply: aiReplyText,
         assessment,
+        groundingSources,
       },
     });
   } catch (error: unknown) {
@@ -126,9 +126,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Generator respons hukum lokal yang mendalam dan terstruktur
- */
 function generateRuleBasedLegalReply(
   userText: string,
   assessment: ReturnType<typeof buildConsultationAssessment>,
@@ -137,7 +134,8 @@ function generateRuleBasedLegalReply(
   const primaryArticle = assessment.articlesCited[0] || {
     articleLabel: "Pasal 1365 KUHPerdata",
     topic: "Perbuatan Melawan Hukum (PMH)",
-    explanation: "Tiap perbuatan yang melanggar hukum dan membawa kerugian kepada orang lain, mewajibkan orang yang menimbulkan kerugian tersebut untuk menggantinya.",
+    explanation:
+      "Tiap perbuatan yang melanggar hukum dan membawa kerugian kepada orang lain, mewajibkan orang yang menimbulkan kerugian tersebut untuk menggantinya.",
   };
 
   if (mode === "interview") {
@@ -175,20 +173,15 @@ Langkah Taktis yang Dapat Anda Ambil:
 Apakah ada bagian dari aturan ini yang ingin Anda tanyakan lebih mendalam?`;
 }
 
-/**
- * Strips emoji, markdown bold/italic, and heading syntax from AI responses
- */
 function sanitizeResponse(text: string): string {
   let cleaned = text;
-  // Remove markdown headings (### Heading -> Heading)
   cleaned = cleaned.replace(/^#{1,6}\s+/gm, "");
-  // Remove bold (**text** -> text) and italic (*text* -> text)
   cleaned = cleaned.replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1");
-  // Remove common emoji (broad Unicode emoji ranges)
-  cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F02F}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}]/gu, "");
-  // Remove blockquote markers (> text -> text)
+  cleaned = cleaned.replace(
+    /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F02F}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}]/gu,
+    ""
+  );
   cleaned = cleaned.replace(/^>\s*/gm, "");
-  // Collapse multiple blank lines into one
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
   return cleaned.trim();
 }

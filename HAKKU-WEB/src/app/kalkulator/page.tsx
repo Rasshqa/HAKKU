@@ -23,7 +23,7 @@ export default function KalkulatorPage() {
             ]}
           />
           <span className="self-start sm:self-auto text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-full">
-            Fitur Inovasi 2 • Ketenagakerjaan
+            Ketenagakerjaan • PP No. 35/2021
           </span>
         </div>
 

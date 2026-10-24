@@ -17,6 +17,7 @@ export interface EvidenceItem {
   description: string;
   weight: EvidenceWeight;
   storageLocation: string; // Lokasi penyimpanan (misal: "PDF Mutasi m-Banking", "Screenshot WA tersimpan di Drive")
+  sourceNotes?: string; // Catatan sumber perolehan, keaslian berkas, atau rantai penyimpanan (chain of custody)
   isAvailable: boolean;
 }
 

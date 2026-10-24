@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CreateCaseInputSchema } from "@/modules/db/types";
+import { CreateCaseInputSchema, CaseStatus } from "@/modules/db/types";
 import { getCaseRepository } from "@/modules/db/repository";
+import { getServerSessionUser } from "@/lib/auth/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +17,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parseResult = CreateCaseInputSchema.safeParse(rawBody);
+    const sessionUser = getServerSessionUser(request);
+    const bodyWithUser = {
+      ...rawBody,
+      userId: rawBody.userId ?? sessionUser?.id ?? null,
+    };
+
+    const parseResult = CreateCaseInputSchema.safeParse(bodyWithUser);
 
     if (!parseResult.success) {
       return NextResponse.json(
@@ -66,10 +73,20 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get("limit");
-    const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 20), 100) : 20;
+    const statusParam = (searchParams.get("status") || "all") as CaseStatus | "all";
+    const categoryParam = searchParams.get("category") || "all";
+    const searchQuery = searchParams.get("search") || "";
+    const limit = limitParam
+      ? Math.min(Math.max(1, parseInt(limitParam, 10) || 20), 100)
+      : 20;
 
     const repository = getCaseRepository();
-    const cases = await repository.listCases(limit);
+    const cases = await repository.listCases({
+      limit,
+      status: statusParam,
+      category: categoryParam,
+      search: searchQuery,
+    });
 
     return NextResponse.json(
       {

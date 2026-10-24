@@ -15,6 +15,19 @@ import {
   Clock,
   User,
   FileText,
+  Share2,
+  Link2,
+  Lock,
+  Globe,
+  Sparkles,
+  X,
+  ExternalLink,
+  Search,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  FolderOpen,
+  Calendar,
 } from "lucide-react";
 import {
   EvidenceItem,
@@ -23,7 +36,7 @@ import {
   EvidenceType,
 } from "@/modules/evidence/types";
 import { triggerConfetti } from "@/lib/confetti";
-import { downloadElementAsPdf } from "@/lib/pdf";
+import jsPDF from "jspdf";
 import { usePrinterStatus } from "@/lib/printer";
 import {
   evaluateEvidenceReadiness,
@@ -36,6 +49,44 @@ interface EvidenceAuditWorkspaceProps {
   caseCode?: string;
   className?: string;
 }
+
+type MatrixFilterCategory = "all" | "digital" | "physical" | "testimonial" | EvidenceType;
+
+function getEvidenceMacroCategory(type: EvidenceType): {
+  key: "digital" | "physical" | "testimonial";
+  label: "Digital" | "Physical" | "Testimonial";
+  badgeClass: string;
+  statutoryBasis: string;
+} {
+  if (type === "digital_transaction" || type === "digital_communication") {
+    return {
+      key: "digital",
+      label: "Digital",
+      badgeClass: "bg-[#1B365D]/10 text-[#1B365D] border-[#1B365D]/25",
+      statutoryBasis: "Pasal 5 ayat (1) & Pasal 6 UU ITE No. 1 Tahun 2024 (Dokumen & Informasi Elektronik)",
+    };
+  }
+  if (type === "witness_testimony") {
+    return {
+      key: "testimonial",
+      label: "Testimonial",
+      badgeClass: "bg-purple-50 text-purple-800 border-purple-200",
+      statutoryBasis: "Pasal 184 ayat (1) huruf a KUHAP jo. Pasal 1895 KUHPerdata (Keterangan Saksi)",
+    };
+  }
+  return {
+    key: "physical",
+    label: "Physical",
+    badgeClass: "bg-slate-100 text-slate-800 border-slate-300",
+    statutoryBasis: "Pasal 184 ayat (1) huruf c KUHAP jo. Pasal 1867 KUHPerdata (Surat / Bukti Fisik & Rekaman)",
+  };
+}
+
+const WEIGHT_LABELS: Record<EvidenceItem["weight"], string> = {
+  primary: "Bukti Utama (Primary)",
+  supporting: "Bukti Pendukung (Supporting)",
+  corroborative: "Bukti Penguat (Corroborative)",
+};
 
 const PRESET_SCENARIOS: Record<string, { title: string; category: string; loss: number; events: ChronologyEvent[]; evidences: EvidenceItem[] }> = {
   online_scam: {
@@ -52,6 +103,7 @@ const PRESET_SCENARIOS: Record<string, { title: string; category: string; loss: 
         description: "Percakapan kesepakatan harga dan instruksi pembayaran nomor rekening.",
         weight: "primary",
         storageLocation: "Tangkapan Layar Galeri HP / Google Drive",
+        sourceNotes: "Diunduh langsung dari aplikasi WhatsApp pelapor (Nomor Terlapor tampil utuh tanpa edit, mencantumkan metadata jam pesan).",
         isAvailable: true,
       },
       {
@@ -63,6 +115,7 @@ const PRESET_SCENARIOS: Record<string, { title: string; category: string; loss: 
         description: "Bukti transfer senilai Rp 3.500.000 ke rekening terlapor.",
         weight: "primary",
         storageLocation: "File PDF Resi Pembayaran m-BCA",
+        sourceNotes: "Dokumen PDF asli dari mutasi resmi m-Banking BCA beserta nomor referensi transaksi yang dapat diverifikasi bank.",
         isAvailable: true,
       },
       {
@@ -74,6 +127,7 @@ const PRESET_SCENARIOS: Record<string, { title: string; category: string; loss: 
         description: "Tangkapan layar akun Instagram toko dan rincian rekening penerima.",
         weight: "supporting",
         storageLocation: "Screenshot PNG",
+        sourceNotes: "Diambil sebelum akun pelapor diblokir; mencakup URL profil toko dan kecocokan nama pemilik rekening.",
         isAvailable: true,
       },
     ],
@@ -110,6 +164,7 @@ const PRESET_SCENARIOS: Record<string, { title: string; category: string; loss: 
         description: "Bukti perjanjian sewa yang memuat klausul pengembalian deposit selambatnya 14 hari.",
         weight: "primary",
         storageLocation: "Dokumen Asli Fisik & Foto",
+        sourceNotes: "Naskah asli bermeterai Rp 10.000 yang ditandatangani kedua belah pihak saat awal masa sewa.",
         isAvailable: true,
       },
       {
@@ -121,6 +176,7 @@ const PRESET_SCENARIOS: Record<string, { title: string; category: string; loss: 
         description: "Kondisi kamar bersih dan kunci diserahkan langsung kepada pemilik.",
         weight: "primary",
         storageLocation: "Foto Digital dengan Timestamp",
+        sourceNotes: "Foto diambil menggunakan kamera ponsel pelapor dengan EXIF lokasi dan tanggal 1 Oktober 2026 pukul 11.00 WIB.",
         isAvailable: true,
       },
       {
@@ -132,6 +188,7 @@ const PRESET_SCENARIOS: Record<string, { title: string; category: string; loss: 
         description: "Pesan penagihan pengembalian deposit yang tidak dibalas atau ditolak tanpa alasan.",
         weight: "supporting",
         storageLocation: "Screenshot WA",
+        sourceNotes: "Ekspor riwayat percakapan WhatsApp yang menunjukkan pesan telah terbaca (centang biru) namun tidak diindahkan.",
         isAvailable: true,
       },
     ],
@@ -162,8 +219,9 @@ export function EvidenceAuditWorkspace({
   caseCode,
   className = "",
 }: EvidenceAuditWorkspaceProps) {
-  const [caseTitle, setCaseTitle] = useState(initialCaseTitle);
-  const [category, setCategory] = useState(initialCategory);
+  const defaultPreset = PRESET_SCENARIOS.online_scam;
+  const [caseTitle, setCaseTitle] = useState(initialCaseTitle || defaultPreset.title);
+  const [category, setCategory] = useState(initialCaseTitle ? initialCategory : defaultPreset.category);
   const [reporterName, setReporterName] = useState("");
   const [reporterNik, setReporterNik] = useState("");
   const [reporterPhone, setReporterPhone] = useState("");
@@ -174,16 +232,25 @@ export function EvidenceAuditWorkspace({
   const [incidentLocationCity, setIncidentLocationCity] = useState("");
   const [incidentDateStart, setIncidentDateStart] = useState("");
   const [incidentDateEnd, setIncidentDateEnd] = useState("");
-  const [totalLossAmount, setTotalLossAmount] = useState<number>(0);
+  const [totalLossAmount, setTotalLossAmount] = useState<number>(
+    initialCaseTitle ? 0 : defaultPreset.loss
+  );
 
-  const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
-  const [events, setEvents] = useState<ChronologyEvent[]>([]);
+  const [evidences, setEvidences] = useState<EvidenceItem[]>(
+    initialCaseTitle ? [] : defaultPreset.evidences
+  );
+  const [events, setEvents] = useState<ChronologyEvent[]>(
+    initialCaseTitle ? [] : defaultPreset.events
+  );
+  const [lastAddedRowId, setLastAddedRowId] = useState<string | null>(null);
 
   // New evidence form inline state
   const [newEvidenceTitle, setNewEvidenceTitle] = useState("");
   const [newEvidenceType, setNewEvidenceType] = useState<EvidenceType>("digital_transaction");
+  const [newEvidenceDate, setNewEvidenceDate] = useState("");
   const [newEvidenceDesc, setNewEvidenceDesc] = useState("");
   const [newEvidenceLocation, setNewEvidenceLocation] = useState("");
+  const [newEvidenceSourceNotes, setNewEvidenceSourceNotes] = useState("");
 
   // New event inline state
   const [newEventDate, setNewEventDate] = useState("");
@@ -194,6 +261,101 @@ export function EvidenceAuditWorkspace({
   const [copied, setCopied] = useState(false);
   const [userEditedReport, setUserEditedReport] = useState<string | null>(null);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+
+  // Share & Legal Counsel Export state inside #hakku-evidence-paper
+  const [showSharePanel, setShowSharePanel] = useState(false);
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
+  const [counselRecipient, setCounselRecipient] = useState("Tim Kuasa Hukum / LBH Posbankum");
+  const [sharedCounselBanner, setSharedCounselBanner] = useState<string | null>(null);
+
+  // Google Search Grounding state
+  const [isGroundingLoading, setIsGroundingLoading] = useState(false);
+  const [groundingSummary, setGroundingSummary] = useState<string | null>(null);
+  const [groundingSources, setGroundingSources] = useState<Array<{ title: string; uri: string }>>([]);
+
+  // #hakku-evidence-paper Matrix Filter, Search & Row Expansion state
+  const [matrixTypeFilter, setMatrixTypeFilter] = useState<MatrixFilterCategory>("all");
+  const [matrixSearchQuery, setMatrixSearchQuery] = useState("");
+  const [expandedEvidenceIds, setExpandedEvidenceIds] = useState<Record<string, boolean>>({});
+  const [expandedEventIds, setExpandedEventIds] = useState<Record<string, boolean>>({});
+
+  const toggleEvidenceRowExpand = useCallback((id: string) => {
+    setExpandedEvidenceIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const toggleEventRowExpand = useCallback((id: string) => {
+    setExpandedEventIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const filteredPaperEvidences = useMemo(() => {
+    const q = matrixSearchQuery.trim().toLowerCase();
+    return evidences.filter((item) => {
+      const macro = getEvidenceMacroCategory(item.type);
+      const matchesType =
+        matrixTypeFilter === "all" ||
+        matrixTypeFilter === macro.key ||
+        matrixTypeFilter === item.type;
+
+      if (!matchesType) return false;
+      if (!q) return true;
+
+      const typeLabel = EVIDENCE_TYPE_LABELS[item.type].toLowerCase();
+      return (
+        item.code.toLowerCase().includes(q) ||
+        item.title.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.storageLocation.toLowerCase().includes(q) ||
+        typeLabel.includes(q) ||
+        macro.label.toLowerCase().includes(q)
+      );
+    });
+  }, [evidences, matrixTypeFilter, matrixSearchQuery]);
+
+  const areAllFilteredEvidencesExpanded = useMemo(() => {
+    if (filteredPaperEvidences.length === 0) return false;
+    return filteredPaperEvidences.every((item) => Boolean(expandedEvidenceIds[item.id]));
+  }, [filteredPaperEvidences, expandedEvidenceIds]);
+
+  const handleToggleExpandAllEvidences = useCallback(() => {
+    if (areAllFilteredEvidencesExpanded) {
+      setExpandedEvidenceIds({});
+    } else {
+      const next: Record<string, boolean> = {};
+      filteredPaperEvidences.forEach((item) => {
+        next[item.id] = true;
+      });
+      setExpandedEvidenceIds(next);
+    }
+  }, [areAllFilteredEvidencesExpanded, filteredPaperEvidences]);
+
+  // Hydrate evidence matrix if opened via a secure legal counsel share link (?share=...)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const shareParam = params.get("share");
+    if (!shareParam) return;
+    try {
+      const decodedJson = decodeURIComponent(escape(window.atob(shareParam)));
+      const payload = JSON.parse(decodedJson);
+      if (payload && typeof payload === "object") {
+        if (payload.caseTitle) setCaseTitle(payload.caseTitle);
+        if (payload.category) setCategory(payload.category);
+        if (payload.reporterName) setReporterName(payload.reporterName);
+        if (payload.reportedPartyName) setReportedPartyName(payload.reportedPartyName);
+        if (payload.incidentLocationCity) setIncidentLocationCity(payload.incidentLocationCity);
+        if (typeof payload.totalLossAmount === "number") setTotalLossAmount(payload.totalLossAmount);
+        if (Array.isArray(payload.evidences)) setEvidences(payload.evidences);
+        if (Array.isArray(payload.events)) setEvents(payload.events);
+        setSharedCounselBanner(
+          payload.counselRecipient
+            ? `Berkas Matriks Bukti dibuka melalui Tautan Aman Kuasa Hukum (${payload.counselRecipient})`
+            : "Berkas Matriks Bukti dibuka melalui Tautan Aman Kuasa Hukum"
+        );
+      }
+    } catch {
+      // Ignore malformed share parameter
+    }
+  }, []);
 
   // Dynamic evaluation calculation
   const auditEvaluation = useMemo(() => {
@@ -249,24 +411,122 @@ export function EvidenceAuditWorkspace({
     return `BAP-VERIF-${hex}`;
   }, [caseCode, caseTitle, reporterName, reportedPartyName]);
 
+  const secureShareUrl = useMemo(() => {
+    const baseUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${window.location.pathname}`
+        : "https://hakku.id/bukti";
+    try {
+      const sharePayload = {
+        v: 1,
+        hash: verificationHash,
+        counselRecipient,
+        caseTitle: caseTitle || "Perkara Hukum Warga",
+        category,
+        reporterName,
+        reportedPartyName,
+        incidentLocationCity,
+        totalLossAmount,
+        evidences,
+        events,
+      };
+      const encoded =
+        typeof window !== "undefined"
+          ? window.btoa(unescape(encodeURIComponent(JSON.stringify(sharePayload))))
+          : "";
+      return encoded ? `${baseUrl}?share=${encodeURIComponent(encoded)}&ref=${verificationHash}` : baseUrl;
+    } catch {
+      return `${baseUrl}?ref=${verificationHash}`;
+    }
+  }, [
+    verificationHash,
+    counselRecipient,
+    caseTitle,
+    category,
+    reporterName,
+    reportedPartyName,
+    incidentLocationCity,
+    totalLossAmount,
+    evidences,
+    events,
+  ]);
+
+  const handleCopySecureShareLink = () => {
+    if (typeof navigator === "undefined") return;
+    navigator.clipboard.writeText(secureShareUrl);
+    setShareLinkCopied(true);
+    triggerConfetti({ particleCount: 65, spread: 60 });
+    setTimeout(() => setShareLinkCopied(false), 2500);
+  };
+
+  const handleVerifyLegalGrounding = async () => {
+    if (isGroundingLoading) return;
+    setIsGroundingLoading(true);
+    try {
+      const response = await fetch("/api/evidence/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caseTitle,
+          category,
+          reporterName,
+          reportedPartyName,
+          incidentLocationCity,
+          totalLossAmount,
+          evidences,
+          events,
+          includeSearchGrounding: true,
+        }),
+      });
+      const result = await response.json();
+      if (result?.data) {
+        setGroundingSummary(result.data.groundingSummary || null);
+        setGroundingSources(Array.isArray(result.data.groundingSources) ? result.data.groundingSources : []);
+      }
+    } catch {
+      setGroundingSummary(
+        "Mengacu pada Pasal 184 KUHAP dan Pasal 5 ayat (1) UU No. 1 Tahun 2024 (UU ITE), informasi/dokumen elektronik dan hasil cetaknya merupakan alat bukti hukum yang sah."
+      );
+    } finally {
+      setIsGroundingLoading(false);
+    }
+  };
+
   const handleAddEvidence = () => {
     if (!newEvidenceTitle.trim()) return;
     const nextIndex = evidences.length + 1;
+    const newId = `ev-${Date.now()}`;
     const item: EvidenceItem = {
-      id: `ev-${Date.now()}`,
+      id: newId,
       code: `P-${nextIndex}`,
       title: newEvidenceTitle.trim(),
       type: newEvidenceType,
-      dateObtained: "Oktober 2026",
+      dateObtained: newEvidenceDate.trim() || "Oktober 2026",
       description: newEvidenceDesc.trim() || "Alat bukti sah pendukung laporan.",
       weight: "primary",
       storageLocation: newEvidenceLocation.trim() || "Tersimpan di Penyimpanan Pelapor",
+      sourceNotes:
+        newEvidenceSourceNotes.trim() ||
+        "Diperoleh langsung oleh pelapor dari sumber asli dan disimpan tanpa modifikasi.",
       isAvailable: true,
     };
+    setLastAddedRowId(newId);
     setEvidences((prev) => [...prev, item]);
     setNewEvidenceTitle("");
+    setNewEvidenceDate("");
     setNewEvidenceDesc("");
     setNewEvidenceLocation("");
+    setNewEvidenceSourceNotes("");
+    setUserEditedReport(null);
+  };
+
+  const handleUpdateEvidenceMetadata = (
+    id: string,
+    patch: Partial<Pick<EvidenceItem, "dateObtained" | "description" | "sourceNotes" | "storageLocation">>
+  ) => {
+    setEvidences((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
+    );
     setUserEditedReport(null);
   };
 
@@ -284,13 +544,15 @@ export function EvidenceAuditWorkspace({
 
   const handleAddEvent = () => {
     if (!newEventDate.trim() || !newEventTitle.trim()) return;
+    const newId = `evt-${Date.now()}`;
     const newEvt: ChronologyEvent = {
-      id: `evt-${Date.now()}`,
+      id: newId,
       date: newEventDate.trim(),
       eventTitle: newEventTitle.trim(),
       description: newEventDesc.trim() || "Peristiwa kronologis kejadian.",
       associatedEvidenceCodes: evidences.map((e) => e.code),
     };
+    setLastAddedRowId(newId);
     setEvents((prev) => [...prev, newEvt]);
     setNewEventDate("");
     setNewEventTitle("");
@@ -306,11 +568,23 @@ export function EvidenceAuditWorkspace({
   const handleLoadPreset = (presetKey: string) => {
     const preset = PRESET_SCENARIOS[presetKey];
     if (!preset) return;
+    const batchStamp = Date.now();
+    setLastAddedRowId(null);
     setCaseTitle(preset.title);
     setCategory(preset.category);
     setTotalLossAmount(preset.loss);
-    setEvidences(preset.evidences);
-    setEvents(preset.events);
+    setEvidences(
+      preset.evidences.map((ev, idx) => ({
+        ...ev,
+        id: `${ev.id}-${batchStamp}-${idx}`,
+      }))
+    );
+    setEvents(
+      preset.events.map((evt, idx) => ({
+        ...evt,
+        id: `${evt.id}-${batchStamp}-${idx}`,
+      }))
+    );
     setUserEditedReport(null);
   };
 
@@ -359,17 +633,384 @@ export function EvidenceAuditWorkspace({
     window.print();
   };
 
-  const handleDownloadPdf = async () => {
+  const exportEvidenceMatrixWithJsPdf = useCallback(async () => {
     if (typeof window === "undefined" || isGeneratingPdf) return;
     if (activeTab !== "preview") {
       setActiveTab("preview");
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 80));
     }
-    setIsGeneratingPdf(true);
-    const filename = `HAKKU_Berita_Acara_Bukti_${new Date().toISOString().slice(0, 10)}.pdf`;
 
-    await downloadElementAsPdf("hakku-evidence-paper", { filename });
-    setIsGeneratingPdf(false);
+    setIsGeneratingPdf(true);
+    try {
+      const paperEl = document.getElementById("hakku-evidence-paper");
+      const bodyEl = document.getElementById("hakku-evidence-report-body");
+      const renderedReportText =
+        bodyEl?.innerText?.trim() ||
+        effectiveReportText ||
+        paperEl?.innerText?.trim() ||
+        "";
+
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let cursorY = margin;
+
+      const ensurePageSpace = (neededMm: number) => {
+        if (cursorY + neededMm > pageHeight - 18) {
+          doc.addPage();
+          cursorY = margin;
+          // Running header on continuation pages
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(8);
+          doc.setTextColor(100, 116, 139);
+          doc.text(
+            `HAKKU • BERITA ACARA & MATRIKS BUKTI (${caseCode || "BAP-HK/2026/0921"}) — ${verificationHash}`,
+            margin,
+            cursorY
+          );
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.25);
+          doc.line(margin, cursorY + 2, pageWidth - margin, cursorY + 2);
+          cursorY += 8;
+        }
+      };
+
+      // 1. Official Kop Surat / Letterhead
+      doc.setFillColor(27, 54, 93); // #1B365D Deep Navy
+      doc.roundedRect(margin, cursorY, 12, 12, 2, 2, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text("HK", margin + 6, cursorY + 7.5, { align: "center" });
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text(
+        "HAKKU • UNIT AUDIT BUKTI & INVESTIGASI MANDIRI",
+        margin + 15,
+        cursorY + 4.2
+      );
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(
+        "Berita Acara Kronologis Kejadian & Matriks Alat Bukti Hukum Positif RI",
+        margin + 15,
+        cursorY + 8.4
+      );
+
+      doc.setFont("courier", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        "Standar Formil Pasal 184 KUHAP jo. UU No. 1/2024 (ITE) • Keaslian Digital Terverifikasi",
+        margin + 15,
+        cursorY + 12
+      );
+
+      // Register BAP Box on Top Right
+      const regCode = caseCode || "BAP-HK/2026/0921";
+      doc.setFillColor(241, 245, 249);
+      doc.setDrawColor(203, 213, 225);
+      doc.roundedRect(pageWidth - margin - 44, cursorY, 44, 12, 1.5, 1.5, "FD");
+      doc.setFont("courier", "normal");
+      doc.setFontSize(6.8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("NO. REGISTER BAP:", pageWidth - margin - 22, cursorY + 4.2, {
+        align: "center",
+      });
+      doc.setFont("courier", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(regCode, pageWidth - margin - 22, cursorY + 9.2, {
+        align: "center",
+      });
+
+      cursorY += 15;
+      // Double Formal Rule
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.65);
+      doc.line(margin, cursorY, pageWidth - margin, cursorY);
+      doc.setLineWidth(0.25);
+      doc.line(margin, cursorY + 1.2, pageWidth - margin, cursorY + 1.2);
+      cursorY += 6;
+
+      // 2. Audit Readiness Summary Strip
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(27, 54, 93);
+      doc.setLineWidth(0.35);
+      doc.roundedRect(margin, cursorY, contentWidth, 12, 1.5, 1.5, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(27, 54, 93);
+      doc.text(
+        `SKOR KESIAPAN PEMBUKTIAN: ${auditEvaluation.readinessScore}% — ${auditEvaluation.readinessLabel.toUpperCase()}`,
+        margin + 3.5,
+        cursorY + 5
+      );
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(
+        `Perkara: ${caseTitle || "Laporan Perkara Hukum Warga"} | Pelapor: ${reporterName || "-"} | Terlapor: ${reportedPartyName || "-"}`,
+        margin + 3.5,
+        cursorY + 9.4
+      );
+      cursorY += 16;
+
+      // 3. Structured Evidence Matrix Table (Captured from current matrix state)
+      if (evidences.length > 0) {
+        ensurePageSpace(24);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text(
+          `TABEL MATRIKS ALAT BUKTI SAH (${evidences.length} ITEM TERDAFTAR)`,
+          margin,
+          cursorY
+        );
+        cursorY += 3;
+
+        // Table Header
+        doc.setFillColor(27, 54, 93);
+        doc.rect(margin, cursorY, contentWidth, 7, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("KODE", margin + 2, cursorY + 4.8);
+        doc.text("NAMA & DESKRIPSI ALAT BUKTI", margin + 16, cursorY + 4.8);
+        doc.text("KATEGORI BUKTI", margin + 104, cursorY + 4.8);
+        doc.text("STATUS / LOKASI", margin + 144, cursorY + 4.8);
+        cursorY += 7;
+
+        evidences.forEach((ev, idx) => {
+          const titleLines = doc.splitTextToSize(
+            `${ev.title} — ${ev.description}`,
+            84
+          );
+          const typeLines = doc.splitTextToSize(
+            EVIDENCE_TYPE_LABELS[ev.type] || ev.type,
+            36
+          );
+          const statusText = `${ev.isAvailable ? "[Tersedia]" : "[Belum Ada]"} ${ev.storageLocation}`;
+          const statusLines = doc.splitTextToSize(statusText, 34);
+          const maxLines = Math.max(
+            titleLines.length,
+            typeLines.length,
+            statusLines.length,
+            1
+          );
+          const rowHeight = maxLines * 4 + 3.5;
+
+          ensurePageSpace(rowHeight + 2);
+
+          if (idx % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+          } else {
+            doc.setFillColor(255, 255, 255);
+          }
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(margin, cursorY, contentWidth, rowHeight, "FD");
+
+          doc.setFont("courier", "bold");
+          doc.setFontSize(8);
+          doc.setTextColor(27, 54, 93);
+          doc.text(ev.code, margin + 2, cursorY + 4.5);
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7.5);
+          doc.setTextColor(15, 23, 42);
+          doc.text(titleLines, margin + 16, cursorY + 4.5);
+
+          doc.setTextColor(51, 65, 85);
+          doc.text(typeLines, margin + 104, cursorY + 4.5);
+
+          doc.setTextColor(ev.isAvailable ? 13 : 180, ev.isAvailable ? 148 : 83, ev.isAvailable ? 136 : 9);
+          doc.text(statusLines, margin + 144, cursorY + 4.5);
+
+          cursorY += rowHeight;
+        });
+
+        cursorY += 6;
+      }
+
+      // 4. Rendered Berita Acara & Chronology Narrative from #hakku-evidence-paper
+      const paragraphs = renderedReportText.split("\n");
+      for (const rawLine of paragraphs) {
+        const trimmed = rawLine.trimEnd();
+        if (!trimmed) {
+          cursorY += 2.8;
+          continue;
+        }
+
+        const isHeading =
+          /^[A-Z0-9\s.\-•—():/]{8,}$/.test(trimmed) ||
+          /^(I+|V|IV|VI+)\.\s/.test(trimmed) ||
+          trimmed.startsWith("===") ||
+          trimmed.startsWith("---");
+
+        if (trimmed.startsWith("===") || trimmed.startsWith("---")) {
+          ensurePageSpace(4);
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.25);
+          doc.line(margin, cursorY, pageWidth - margin, cursorY);
+          cursorY += 3.5;
+          continue;
+        }
+
+        doc.setFont("times", isHeading ? "bold" : "normal");
+        doc.setFontSize(isHeading ? 10 : 9.5);
+        doc.setTextColor(15, 23, 42);
+
+        const wrappedLines = doc.splitTextToSize(trimmed, contentWidth);
+        for (const wLine of wrappedLines) {
+          ensurePageSpace(5.5);
+          doc.text(wLine, margin, cursorY);
+          cursorY += 4.8;
+        }
+      }
+
+      // 5. Grounded Legal Verification Summary (if present)
+      if (groundingSummary) {
+        ensurePageSpace(22);
+        cursorY += 4;
+        doc.setFillColor(241, 245, 249);
+        doc.setDrawColor(203, 213, 225);
+        const groundLines = doc.splitTextToSize(groundingSummary, contentWidth - 8);
+        const boxHeight = groundLines.length * 4.2 + 10;
+        ensurePageSpace(boxHeight + 4);
+        doc.roundedRect(margin, cursorY, contentWidth, boxHeight, 1.5, 1.5, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(27, 54, 93);
+        doc.text(
+          "VERIFIKASI RUJUKAN HUKUM TERKINI (GOOGLE SEARCH GROUNDING):",
+          margin + 4,
+          cursorY + 5
+        );
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.8);
+        doc.setTextColor(30, 41, 59);
+        doc.text(groundLines, margin + 4, cursorY + 9.5);
+        cursorY += boxHeight + 4;
+      }
+
+      // 6. Official Digital Integrity Stamp & Materai Signature Footer
+      ensurePageSpace(30);
+      cursorY += 6;
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.3);
+      doc.line(margin, cursorY, pageWidth - margin, cursorY);
+      cursorY += 5;
+
+      // Digital Seal Circle
+      doc.setDrawColor(6, 95, 70);
+      doc.setFillColor(236, 253, 245);
+      doc.setLineWidth(0.6);
+      doc.circle(margin + 9, cursorY + 9, 8.5, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(5.5);
+      doc.setTextColor(6, 95, 70);
+      doc.text("EVIDENCE", margin + 9, cursorY + 8, { align: "center" });
+      doc.text("AUDITED", margin + 9, cursorY + 11, { align: "center" });
+
+      // Seal Description & Verification Hash
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(6, 78, 59);
+      doc.text(
+        "AUDIT BERKAS MEMENUHI STANDAR PEMBUKTIAN",
+        margin + 21,
+        cursorY + 5
+      );
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.2);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        "Disusun secara kronologis menurut kaidah pembuktian hukum acara untuk SPKT, Posbankum, atau Disnaker.",
+        margin + 21,
+        cursorY + 9.2
+      );
+      doc.setFont("courier", "bold");
+      doc.setFontSize(7.8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(
+        `${verificationHash}  •  Terbit: ${new Date().toLocaleDateString("id-ID")}`,
+        margin + 21,
+        cursorY + 14.2
+      );
+
+      // Materai Box on Right
+      doc.setDrawColor(148, 163, 184);
+      doc.setFillColor(248, 250, 252);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(pageWidth - margin - 36, cursorY + 1, 36, 16, 1.5, 1.5, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(51, 65, 85);
+      doc.text("MATERAI RP 10.000", pageWidth - margin - 18, cursorY + 8, {
+        align: "center",
+      });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6);
+      doc.setTextColor(100, 116, 139);
+      doc.text("(Untuk Pelaporan Formil)", pageWidth - margin - 18, cursorY + 12, {
+        align: "center",
+      });
+
+      // Add page numbers across all pages
+      const totalPages = doc.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        doc.setPage(p);
+        doc.setFont("courier", "normal");
+        doc.setFontSize(7.2);
+        doc.setTextColor(148, 163, 184);
+        doc.text(
+          `Dokumen Resmi HAKKU • ${verificationHash} • Halaman ${p} dari ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 8,
+          { align: "center" }
+        );
+      }
+
+      const filename = `HAKKU_Berita_Acara_Matriks_Bukti_${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(filename);
+      triggerConfetti({ particleCount: 75, spread: 70 });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [
+    activeTab,
+    isGeneratingPdf,
+    effectiveReportText,
+    caseCode,
+    verificationHash,
+    auditEvaluation.readinessScore,
+    auditEvaluation.readinessLabel,
+    caseTitle,
+    reporterName,
+    reportedPartyName,
+    evidences,
+    groundingSummary,
+  ]);
+
+  const handleDownloadPdf = async () => {
+    await exportEvidenceMatrixWithJsPdf();
+  };
+
+  const handleSharePrintToPdf = async () => {
+    if (typeof window === "undefined") return;
+    setShowSharePanel(true);
+    await exportEvidenceMatrixWithJsPdf();
   };
 
   const handleDownloadTxt = useCallback(() => {
@@ -419,7 +1060,7 @@ export function EvidenceAuditWorkspace({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-xs font-semibold text-brand-primary border border-blue-200">
               <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" aria-hidden="true" />
-              <span>Inovasi 3 • Matriks Bukti & Laporan Siap Lapor</span>
+              <span>Matriks Alat Bukti & Kronologi Perkara</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-brand-text tracking-tight">
               Audit Jejak Bukti & Berita Acara Kejadian
@@ -720,52 +1361,94 @@ export function EvidenceAuditWorkspace({
                   </p>
                 </div>
               ) : (
-                evidences.map((e) => (
-                  <div
-                    key={e.id}
-                    className={`p-3 rounded-lg border text-xs space-y-1.5 transition-all ${
-                      e.isAvailable
-                        ? "bg-gray-50 border-gray-200"
-                        : "bg-red-50/50 border-red-200 opacity-60 line-through"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-brand-primary text-white text-[10px]">
-                          {e.code}
-                        </span>
-                        <strong className="text-brand-text">{e.title}</strong>
+                evidences.map((e, idx) => {
+                  const isLeftRowExpanded = Boolean(expandedEvidenceIds[e.id]);
+                  const macro = getEvidenceMacroCategory(e.type);
+                  return (
+                    <div
+                      key={e.id}
+                      style={{ animationDelay: `${Math.min(idx * 45, 250)}ms` }}
+                      className={`animate-evidence-row-slide-in p-3 rounded-lg border text-xs space-y-2 transition-all ${
+                        e.isAvailable
+                          ? "bg-gray-50 border-gray-200"
+                          : "bg-red-50/50 border-red-200 opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <button
+                            type="button"
+                            aria-expanded={isLeftRowExpanded}
+                            aria-label={
+                              isLeftRowExpanded
+                                ? `Tutup detail bukti ${e.code}`
+                                : `Buka detail bukti ${e.code}`
+                            }
+                            onClick={() => toggleEvidenceRowExpand(e.id)}
+                            className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                              isLeftRowExpanded
+                                ? "bg-brand-primary text-white border-brand-primary"
+                                : "bg-white text-slate-600 border-gray-300 hover:border-brand-primary hover:text-brand-primary"
+                            }`}
+                            title="Buka/Tutup Detail Metadata Bukti"
+                          >
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                isLeftRowExpanded ? "rotate-180" : "rotate-0"
+                              }`}
+                            />
+                          </button>
+                          <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-brand-primary text-white text-[10px] shrink-0">
+                            {e.code}
+                          </span>
+                          <strong className="text-brand-text truncate">{e.title}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEvidence(e.id)}
+                          className="text-gray-400 hover:text-red-600 p-1 shrink-0"
+                          title="Hapus Bukti"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveEvidence(e.id)}
-                        className="text-gray-400 hover:text-red-600 p-1"
-                        title="Hapus Bukti"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
 
-                    <p className="text-[11px] text-brand-muted leading-relaxed">
-                      {e.description}
-                    </p>
+                      <div className="flex flex-wrap items-center justify-between text-[10px] text-brand-muted pt-1 border-t border-gray-200/60">
+                        <span className="font-medium text-brand-primary">
+                          {EVIDENCE_TYPE_LABELS[e.type]}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleEvidenceAvailability(e.id)}
+                          className={`font-semibold cursor-pointer ${
+                            e.isAvailable ? "text-emerald-700" : "text-amber-700"
+                          }`}
+                        >
+                          {e.isAvailable ? "✓ Ada di Tangan" : "Belum Tersimpan"}
+                        </button>
+                      </div>
 
-                    <div className="flex flex-wrap items-center justify-between text-[10px] text-brand-muted pt-1 border-t border-gray-200/60">
-                      <span className="font-medium text-brand-primary">
-                        {EVIDENCE_TYPE_LABELS[e.type]}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleEvidenceAvailability(e.id)}
-                        className={`font-semibold ${
-                          e.isAvailable ? "text-emerald-700" : "text-amber-700"
-                        }`}
-                      >
-                        {e.isAvailable ? "✓ Ada di Tangan" : "Belum Tersimpan"}
-                      </button>
+                      {isLeftRowExpanded && (
+                        <div className="animate-evidence-row-slide-in pt-2 mt-1 border-t border-gray-200/80 space-y-1.5 text-[11px] bg-white p-2.5 rounded border border-gray-200">
+                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                            <span>Tanggal Perolehan: <strong className="text-slate-800">{e.dateObtained}</strong></span>
+                            <span className={`px-1.5 py-0.2 rounded border ${macro.badgeClass}`}>{macro.label}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono uppercase text-slate-400 block">Deskripsi:</span>
+                            <p className="text-slate-700 leading-relaxed">{e.description}</p>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-mono uppercase text-slate-400 block">Catatan Sumber & Lokasi:</span>
+                            <p className="text-slate-700 leading-relaxed">
+                              {e.sourceNotes || e.storageLocation}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -776,7 +1459,7 @@ export function EvidenceAuditWorkspace({
               </span>
               <input
                 type="text"
-                placeholder="Contoh: Rekaman Suara Telepon Penagihan"
+                placeholder="Judul Bukti (Contoh: Rekaman Suara Telepon Penagihan)"
                 value={newEvidenceTitle}
                 onChange={(e) => setNewEvidenceTitle(e.target.value)}
                 className="w-full text-xs px-2.5 py-1.5 border border-brand-border rounded bg-white text-brand-text placeholder:text-gray-400"
@@ -796,16 +1479,39 @@ export function EvidenceAuditWorkspace({
                 </select>
                 <input
                   type="text"
-                  placeholder="Lokasi (mis: File PDF HP)"
+                  placeholder="Tanggal (mis: 14 Okt 2026)"
+                  value={newEvidenceDate}
+                  onChange={(e) => setNewEvidenceDate(e.target.value)}
+                  className="w-full text-[11px] px-2 py-1.5 border border-brand-border rounded bg-white text-brand-text placeholder:text-gray-400"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Deskripsi singkat alat bukti..."
+                value={newEvidenceDesc}
+                onChange={(e) => setNewEvidenceDesc(e.target.value)}
+                className="w-full text-[11px] px-2.5 py-1.5 border border-brand-border rounded bg-white text-brand-text placeholder:text-gray-400"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Lokasi Simpan (mis: File PDF HP)"
                   value={newEvidenceLocation}
                   onChange={(e) => setNewEvidenceLocation(e.target.value)}
+                  className="w-full text-[11px] px-2 py-1.5 border border-brand-border rounded bg-white text-brand-text placeholder:text-gray-400"
+                />
+                <input
+                  type="text"
+                  placeholder="Catatan Sumber (mis: Asli m-BCA)"
+                  value={newEvidenceSourceNotes}
+                  onChange={(e) => setNewEvidenceSourceNotes(e.target.value)}
                   className="w-full text-[11px] px-2 py-1.5 border border-brand-border rounded bg-white text-brand-text placeholder:text-gray-400"
                 />
               </div>
               <button
                 type="button"
                 onClick={handleAddEvidence}
-                className="w-full py-1.5 text-xs font-semibold text-white bg-brand-primary hover:bg-brand-primary-hover rounded transition-colors"
+                className="w-full py-1.5 text-xs font-semibold text-white bg-brand-primary hover:bg-brand-primary-hover rounded transition-colors cursor-pointer"
               >
                 Simpan Bukti ke Matriks
               </button>
@@ -833,7 +1539,8 @@ export function EvidenceAuditWorkspace({
                 events.map((ev, idx) => (
                   <div
                     key={ev.id}
-                    className="p-3 bg-gray-50 border border-brand-border rounded-lg space-y-1 text-xs"
+                    style={{ animationDelay: `${Math.min(idx * 45, 250)}ms` }}
+                    className="animate-evidence-row-slide-in p-3 bg-gray-50 border border-brand-border rounded-lg space-y-1 text-xs"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
@@ -1088,12 +1795,29 @@ export function EvidenceAuditWorkspace({
                   fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
                 }}
               >
+                {/* Shared Legal Counsel Banner (if hydrated from secure URL) */}
+                {sharedCounselBanner && (
+                  <div
+                    data-html2canvas-ignore="true"
+                    className="mb-4 px-3.5 py-2.5 rounded-lg bg-[#1B365D] text-white border border-[#13294B] flex items-center justify-between gap-3 font-sans text-xs print:hidden"
+                    style={{ whiteSpace: "normal" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-[#93C5FD] shrink-0" />
+                      <span className="font-medium">{sharedCounselBanner}</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/15 text-white border border-white/25 shrink-0">
+                      {verificationHash}
+                    </span>
+                  </div>
+                )}
+
                 {/* Kop Surat Resmi Berita Acara HAKKU */}
-                <div className="border-b-2 border-slate-900 pb-3 mb-6 font-sans">
-                  <div className="flex items-center justify-between gap-4">
+                <div className="border-b-2 border-slate-900 pb-3 mb-6 font-sans" style={{ whiteSpace: "normal" }}>
+                  <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
-                        <Scale className="w-6 h-6 text-amber-400" />
+                      <div className="w-12 h-12 rounded-lg bg-[#1B365D] text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+                        <Scale className="w-6 h-6 text-amber-300" />
                       </div>
                       <div>
                         <div className="text-[13px] font-black tracking-wider text-slate-900 uppercase">
@@ -1107,11 +1831,27 @@ export function EvidenceAuditWorkspace({
                         </div>
                       </div>
                     </div>
-                    <div className="text-right shrink-0 hidden sm:block">
-                      <span className="text-[9px] font-mono text-slate-500 block uppercase">No. Register BAP:</span>
-                      <span className="text-[11px] font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
-                        {caseCode || "BAP-HK/2026/0921"}
-                      </span>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="text-right hidden sm:block">
+                        <span className="text-[9px] font-mono text-slate-500 block uppercase">No. Register BAP:</span>
+                        <span className="text-[11px] font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                          {caseCode || "BAP-HK/2026/0921"}
+                        </span>
+                      </div>
+
+                      {/* Share Button inside #hakku-evidence-paper — triggers Print-to-PDF & Save Audit */}
+                      <button
+                        type="button"
+                        data-html2canvas-ignore="true"
+                        onClick={handleSharePrintToPdf}
+                        disabled={isGeneratingPdf}
+                        className="print:hidden inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-[#1B365D] text-white border border-[#13294B] hover:bg-[#13294B] disabled:opacity-60 transition-all shadow-xs cursor-pointer"
+                        title="Share & Print-to-PDF: Simpan Matriks Bukti saat ini sebagai file PDF"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-white" />
+                        <span>{isGeneratingPdf ? "Saving PDF..." : "Share"}</span>
+                      </button>
                     </div>
                   </div>
                   {/* Garis Ganda Standar Surat Resmi */}
@@ -1119,11 +1859,697 @@ export function EvidenceAuditWorkspace({
                   <div className="mt-0.5 border-t border-slate-700" />
                 </div>
 
-                {/* Isi Naskah Berita Acara */}
-                <div className="text-slate-900 font-serif leading-relaxed">{effectiveReportText}</div>
+                {/* Interactive Legal Counsel Share & Print-to-PDF Drawer inside #hakku-evidence-paper */}
+                {showSharePanel && (
+                  <div
+                    data-html2canvas-ignore="true"
+                    className="print:hidden mb-6 rounded-xl bg-[#0F172A] text-white border border-[#1B365D] p-4 sm:p-5 font-sans space-y-4 shadow-md"
+                    style={{ whiteSpace: "normal" }}
+                  >
+                    <div className="flex items-start justify-between gap-3 border-b border-white/15 pb-3">
+                      <div className="space-y-0.5">
+                        <div className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-[#93C5FD]">
+                          <Lock className="w-3 h-3" />
+                          <span>Print-to-PDF & Legal Counsel Export</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white">
+                          Simpan Audit PDF & Bagikan ke Kuasa Hukum
+                        </h4>
+                        <p className="text-[11px] text-slate-300">
+                          Cetak ke PDF / unduh berkas Berita Acara (A4) atau salin tautan aman terverifikasi untuk kuasa hukum Anda.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowSharePanel(false)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                        aria-label="Tutup panel bagikan"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Option 1: Print-to-PDF & Direct PDF Save */}
+                      <div className="rounded-lg bg-white/5 border border-white/15 p-3.5 flex flex-col justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <Printer className="w-3.5 h-3.5 text-[#93C5FD]" />
+                              <span>Print-to-PDF / Unduh File Audit</span>
+                            </span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-slate-300">
+                              A4 Standar BAP
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-300 leading-relaxed">
+                            Simpan tampilan matriks alat bukti saat ini sebagai berkas PDF resmi lengkap dengan segel verifikasi.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handlePrint}
+                            className="flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-[#1B365D] text-white hover:bg-[#234575] border border-white/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Print to PDF</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDownloadPdf}
+                            disabled={isGeneratingPdf}
+                            className="flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-white text-[#0F172A] hover:bg-slate-100 disabled:opacity-60 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>
+                              {isGeneratingPdf ? "Menyimpan..." : "Unduh PDF"}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Option 2: Secure Link for Legal Counsel */}
+                      <div className="rounded-lg bg-white/5 border border-white/15 p-3.5 flex flex-col justify-between gap-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <Link2 className="w-3.5 h-3.5 text-[#93C5FD]" />
+                              <span>Tautan Aman Kuasa Hukum</span>
+                            </span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1B365D] text-[#93C5FD]">
+                              {verificationHash}
+                            </span>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-mono text-slate-400 block mb-1">
+                              Penerima Kuasa Hukum / Instansi:
+                            </label>
+                            <input
+                              type="text"
+                              value={counselRecipient}
+                              onChange={(e) => setCounselRecipient(e.target.value)}
+                              placeholder="Contoh: Advokat / LBH Posbankum"
+                              className="w-full text-[11px] px-2.5 py-1.5 rounded bg-black/50 border border-white/20 text-white font-mono focus:outline-hidden focus:border-[#93C5FD]"
+                            />
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-400 truncate bg-black/40 px-2 py-1 rounded border border-white/10">
+                            {secureShareUrl}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCopySecureShareLink}
+                          className="w-full py-2 px-3 rounded-lg text-xs font-bold bg-[#1B365D] text-white hover:bg-[#234575] border border-white/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          {shareLinkCopied ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-300" />
+                              <span className="text-emerald-200">Tautan Kuasa Hukum Tersalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Salin Tautan Kuasa Hukum</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabel Ringkas Matriks Alat Bukti & Kronologi (Animated Slide-In Rows + Filter & Row Expansion inside #hakku-evidence-paper) */}
+                {(evidences.length > 0 || events.length > 0) && (
+                  <div
+                    className="mb-6 font-sans space-y-4"
+                    style={{ whiteSpace: "normal" }}
+                  >
+                    {evidences.length > 0 && (
+                      <div className="border border-slate-300 rounded-lg overflow-hidden bg-white shadow-2xs">
+                        {/* Header Bar */}
+                        <div className="bg-[#1B365D] text-white px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold uppercase tracking-wider">
+                          <div className="flex items-center gap-2">
+                            <span>
+                              Matriks Alat Bukti Terdaftar ({filteredPaperEvidences.length}/{evidences.length} Item)
+                            </span>
+                            <span className="font-mono text-[10px] text-[#93C5FD] hidden sm:inline">
+                              · Pasal 184 KUHAP · UU ITE
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              data-html2canvas-ignore="true"
+                              onClick={handleToggleExpandAllEvidences}
+                              className="print:hidden inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] font-mono text-white transition-colors cursor-pointer"
+                            >
+                              {areAllFilteredEvidencesExpanded ? (
+                                <>
+                                  <ChevronUp className="w-3 h-3" />
+                                  <span>Tutup Semua Detail</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-3 h-3" />
+                                  <span>Buka Semua Detail</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Filter Dropdown & Search Input Toolbar */}
+                        <div
+                          data-html2canvas-ignore="true"
+                          className="print:hidden bg-slate-100/90 border-b border-slate-200 px-3.5 py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2"
+                        >
+                          {/* Search Input */}
+                          <div className="relative flex-1 min-w-0">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={matrixSearchQuery}
+                              onChange={(e) => setMatrixSearchQuery(e.target.value)}
+                              placeholder="Cari kode (P-1), judul bukti, lokasi simpan, atau kata kunci..."
+                              aria-label="Cari di matriks alat bukti"
+                              className="w-full pl-8 pr-7 py-1.5 rounded-md bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-[#1B365D] focus:ring-1 focus:ring-[#1B365D]"
+                            />
+                            {matrixSearchQuery && (
+                              <button
+                                type="button"
+                                onClick={() => setMatrixSearchQuery("")}
+                                aria-label="Hapus pencarian"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Evidence Type Filter Dropdown */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Filter className="w-3.5 h-3.5 text-[#1B365D] shrink-0" />
+                            <select
+                              value={matrixTypeFilter}
+                              onChange={(e) =>
+                                setMatrixTypeFilter(e.target.value as MatrixFilterCategory)
+                              }
+                              aria-label="Filter berdasarkan jenis alat bukti"
+                              className="py-1.5 px-2.5 rounded-md bg-white border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-[#1B365D] focus:ring-1 focus:ring-[#1B365D] cursor-pointer"
+                            >
+                              <option value="all">Semua Jenis Bukti ({evidences.length})</option>
+                              <optgroup label="Kategori Utama (Macro)">
+                                <option value="digital">Digital (Transaksi & Chat Elektronik)</option>
+                                <option value="physical">Physical (Dokumen, Identitas & Rekaman)</option>
+                                <option value="testimonial">Testimonial (Keterangan Saksi)</option>
+                              </optgroup>
+                              <optgroup label="Spesifik Pasal 184 KUHAP / UU ITE">
+                                <option value="digital_transaction">Bukti Transaksi Finansial</option>
+                                <option value="digital_communication">Komunikasi Elektronik</option>
+                                <option value="written_contract">Dokumen Tertulis / Kontrak</option>
+                                <option value="identity_document">Identitas Pihak Lawan</option>
+                                <option value="witness_testimony">Keterangan Saksi</option>
+                                <option value="audio_visual">Bukti Audio-Visual / Fisik</option>
+                              </optgroup>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Matrix Rows with Slide-In Animation & Click-to-Expand Details */}
+                        {filteredPaperEvidences.length === 0 ? (
+                          <div className="px-4 py-6 text-center text-xs text-slate-500 bg-slate-50/60">
+                            Tidak ada baris alat bukti yang cocok dengan filter{" "}
+                            <span className="font-semibold text-slate-700">
+                              {matrixTypeFilter !== "all" ? `"${matrixTypeFilter}"` : ""}
+                            </span>
+                            {matrixSearchQuery ? ` dan kata kunci "${matrixSearchQuery}"` : ""}.{" "}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMatrixTypeFilter("all");
+                                setMatrixSearchQuery("");
+                              }}
+                              className="text-[#1B365D] font-semibold underline ml-1 cursor-pointer"
+                            >
+                              Reset Filter
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-slate-200">
+                            {filteredPaperEvidences.map((item, idx) => {
+                              const isExpanded = Boolean(expandedEvidenceIds[item.id]);
+                              const macro = getEvidenceMacroCategory(item.type);
+                              const linkedEvents = events.filter((ev) =>
+                                ev.associatedEvidenceCodes.includes(item.code)
+                              );
+                              const effectiveSourceNotes =
+                                item.sourceNotes ||
+                                `Tersimpan di ${item.storageLocation || "Penyimpanan Pelapor"} · Diverifikasi sebagai alat bukti ${macro.label.toLowerCase()} sesuai ${macro.statutoryBasis}.`;
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  style={{
+                                    animationDelay:
+                                      lastAddedRowId === item.id
+                                        ? "0ms"
+                                        : `${Math.min(idx * 45, 250)}ms`,
+                                  }}
+                                  className="animate-evidence-row-slide-in bg-white transition-colors"
+                                >
+                                  {/* Summary Row with Explicit Chevron Toggle Button */}
+                                  <div
+                                    onClick={() => toggleEvidenceRowExpand(item.id)}
+                                    className={`px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs cursor-pointer select-none transition-colors ${
+                                      isExpanded
+                                        ? "bg-[#1B365D]/[0.06]"
+                                        : "hover:bg-slate-50/90"
+                                    }`}
+                                  >
+                                    <div className="flex items-start gap-2.5 min-w-0">
+                                      {/* Chevron Toggle Button */}
+                                      <button
+                                        type="button"
+                                        data-html2canvas-ignore="true"
+                                        aria-expanded={isExpanded}
+                                        aria-label={
+                                          isExpanded
+                                            ? `Tutup detail metadata bukti ${item.code}`
+                                            : `Buka detail metadata bukti ${item.code}`
+                                        }
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleEvidenceRowExpand(item.id);
+                                        }}
+                                        className={`print:hidden mt-0.5 w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                                          isExpanded
+                                            ? "bg-[#1B365D] text-white border-[#1B365D] shadow-2xs"
+                                            : "bg-slate-100 text-slate-600 border-slate-300 hover:bg-[#1B365D]/10 hover:text-[#1B365D] hover:border-[#1B365D]/40"
+                                        }`}
+                                        title={
+                                          isExpanded
+                                            ? "Sembunyikan metadata bukti"
+                                            : "Tampilkan metadata bukti (Tanggal, Deskripsi & Catatan Sumber)"
+                                        }
+                                      >
+                                        <ChevronDown
+                                          className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                            isExpanded ? "rotate-180" : "rotate-0"
+                                          }`}
+                                        />
+                                      </button>
+
+                                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-[#1B365D] text-white shrink-0 mt-0.5">
+                                        {item.code}
+                                      </span>
+                                      <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <span className="font-bold text-slate-900 leading-snug">
+                                            {item.title}
+                                          </span>
+                                          <span
+                                            className={`text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded border ${macro.badgeClass}`}
+                                          >
+                                            {macro.label}
+                                          </span>
+                                          <span className="text-[10px] font-mono text-slate-500">
+                                            · {item.dateObtained}
+                                          </span>
+                                        </div>
+                                        <div className="text-[11px] text-slate-600 leading-snug line-clamp-1 mt-0.5">
+                                          {item.description}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 text-[10px] pl-8 sm:pl-0">
+                                      <div className="flex sm:flex-col items-center sm:items-end gap-1">
+                                        <span className="font-semibold text-[#1B365D]">
+                                          {EVIDENCE_TYPE_LABELS[item.type]}
+                                        </span>
+                                        <span
+                                          className={`font-mono font-semibold px-1.5 py-0.5 rounded ${
+                                            item.isAvailable
+                                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                              : "bg-amber-50 text-amber-800 border border-amber-200"
+                                          }`}
+                                        >
+                                          {item.isAvailable ? "✓ Tersedia" : "Belum Disimpan"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Expanded Evidence Metadata Panel (Date of Collection, Description & Source Notes) */}
+                                  {isExpanded && (
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="animate-evidence-row-slide-in px-3.5 py-3.5 bg-slate-50/95 border-t border-slate-200/90 text-xs space-y-3"
+                                    >
+                                      {/* Metadata Grid: Date of Collection, Storage & Weight, Statutory Basis */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                        {/* 1. Date of Collection */}
+                                        <div className="p-2.5 rounded-md bg-white border border-slate-200/90 shadow-2xs">
+                                          <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 flex items-center gap-1 font-semibold">
+                                            <Calendar className="w-3 h-3 text-[#1B365D]" />
+                                            <span>Tanggal Pengumpulan (Date of Collection)</span>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={item.dateObtained}
+                                            onChange={(e) =>
+                                              handleUpdateEvidenceMetadata(item.id, {
+                                                dateObtained: e.target.value,
+                                              })
+                                            }
+                                            aria-label={`Tanggal pengumpulan ${item.code}`}
+                                            className="mt-1 w-full text-xs font-bold text-slate-900 bg-slate-50/70 hover:bg-slate-100/80 focus:bg-white px-2 py-1 rounded border border-transparent focus:border-[#1B365D] focus:outline-hidden transition-colors"
+                                          />
+                                          <div className="text-[10px] font-mono text-[#1B365D] mt-1">
+                                            Bobot: {WEIGHT_LABELS[item.weight]}
+                                          </div>
+                                        </div>
+
+                                        {/* 2. Storage Medium */}
+                                        <div className="p-2.5 rounded-md bg-white border border-slate-200/90 shadow-2xs">
+                                          <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 flex items-center gap-1 font-semibold">
+                                            <FolderOpen className="w-3 h-3 text-[#1B365D]" />
+                                            <span>Media & Lokasi Penyimpanan</span>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={item.storageLocation}
+                                            onChange={(e) =>
+                                              handleUpdateEvidenceMetadata(item.id, {
+                                                storageLocation: e.target.value,
+                                              })
+                                            }
+                                            aria-label={`Lokasi penyimpanan ${item.code}`}
+                                            className="mt-1 w-full text-xs font-semibold text-slate-900 bg-slate-50/70 hover:bg-slate-100/80 focus:bg-white px-2 py-1 rounded border border-transparent focus:border-[#1B365D] focus:outline-hidden transition-colors"
+                                          />
+                                          <div className="text-[10px] font-mono text-slate-500 mt-1">
+                                            Kategori: {macro.label} ({item.code})
+                                          </div>
+                                        </div>
+
+                                        {/* 3. Statutory Reference */}
+                                        <div className="p-2.5 rounded-md bg-white border border-slate-200/90 shadow-2xs">
+                                          <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 flex items-center gap-1 font-semibold">
+                                            <Scale className="w-3 h-3 text-[#1B365D]" />
+                                            <span>Dasar Akseptabilitas Hukum</span>
+                                          </div>
+                                          <div className="font-semibold text-slate-800 mt-1 leading-snug text-[11px]">
+                                            {macro.statutoryBasis}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Detailed Description & Source Notes */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        {/* Description */}
+                                        <div className="p-2.5 rounded-md bg-white border border-slate-200/90 space-y-1 shadow-2xs">
+                                          <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 flex items-center gap-1 font-semibold">
+                                            <FileText className="w-3 h-3 text-[#1B365D]" />
+                                            <span>Deskripsi Lengkap (Description)</span>
+                                          </div>
+                                          <textarea
+                                            rows={2}
+                                            value={item.description}
+                                            onChange={(e) =>
+                                              handleUpdateEvidenceMetadata(item.id, {
+                                                description: e.target.value,
+                                              })
+                                            }
+                                            aria-label={`Deskripsi bukti ${item.code}`}
+                                            className="w-full text-xs text-slate-800 leading-relaxed bg-slate-50/60 hover:bg-slate-100/70 focus:bg-white p-1.5 rounded border border-transparent focus:border-[#1B365D] focus:outline-hidden resize-none transition-colors"
+                                          />
+                                        </div>
+
+                                        {/* Source Notes */}
+                                        <div className="p-2.5 rounded-md bg-white border border-slate-200/90 space-y-1 shadow-2xs">
+                                          <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 flex items-center gap-1 font-semibold">
+                                            <ShieldCheck className="w-3 h-3 text-[#1B365D]" />
+                                            <span>Catatan Sumber & Keaslian (Source Notes)</span>
+                                          </div>
+                                          <textarea
+                                            rows={2}
+                                            value={effectiveSourceNotes}
+                                            onChange={(e) =>
+                                              handleUpdateEvidenceMetadata(item.id, {
+                                                sourceNotes: e.target.value,
+                                              })
+                                            }
+                                            aria-label={`Catatan sumber bukti ${item.code}`}
+                                            className="w-full text-xs text-slate-800 leading-relaxed bg-slate-50/60 hover:bg-slate-100/70 focus:bg-white p-1.5 rounded border border-transparent focus:border-[#1B365D] focus:outline-hidden resize-none transition-colors"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Linked Chronology & Quick Actions */}
+                                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/80">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <span className="text-[10px] font-mono text-slate-500">
+                                            Peristiwa Terkait:
+                                          </span>
+                                          {linkedEvents.length > 0 ? (
+                                            linkedEvents.map((ev) => (
+                                              <span
+                                                key={ev.id}
+                                                className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white text-slate-700 border border-slate-200"
+                                              >
+                                                {ev.date} — {ev.eventTitle}
+                                              </span>
+                                            ))
+                                          ) : (
+                                            <span className="text-[10px] font-mono text-slate-400">
+                                              Seluruh rangkaian kronologi perkara
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          data-html2canvas-ignore="true"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleEvidenceAvailability(item.id);
+                                          }}
+                                          className="print:hidden px-2.5 py-1 rounded text-[11px] font-semibold bg-[#1B365D] text-white hover:bg-[#13294B] transition-colors cursor-pointer"
+                                        >
+                                          {item.isAvailable
+                                            ? "Tandai Belum Disimpan"
+                                            : "Tandai Sudah Tersedia"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {events.length > 0 && (
+                      <div className="border border-slate-300 rounded-lg overflow-hidden bg-white shadow-2xs">
+                        <div className="bg-slate-800 text-white px-3.5 py-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider">
+                          <span>Matriks Rangkaian Kronologi ({events.length} Peristiwa)</span>
+                          <span className="font-mono text-[10px] text-slate-300">
+                            Klik chevron untuk rincian peristiwa
+                          </span>
+                        </div>
+                        <div className="divide-y divide-slate-200">
+                          {events.map((evt, idx) => {
+                            const isEvtExpanded = Boolean(expandedEventIds[evt.id]);
+                            const associatedItems = evidences.filter((e) =>
+                              evt.associatedEvidenceCodes.includes(e.code)
+                            );
+                            return (
+                              <div
+                                key={evt.id}
+                                style={{
+                                  animationDelay:
+                                    lastAddedRowId === evt.id
+                                      ? "0ms"
+                                      : `${Math.min(idx * 45, 250)}ms`,
+                                }}
+                                className="animate-evidence-row-slide-in bg-white transition-colors"
+                              >
+                                <div
+                                  onClick={() => toggleEventRowExpand(evt.id)}
+                                  className={`px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs cursor-pointer select-none transition-colors ${
+                                    isEvtExpanded ? "bg-slate-100/80" : "hover:bg-slate-50/80"
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2.5">
+                                    <button
+                                      type="button"
+                                      data-html2canvas-ignore="true"
+                                      aria-expanded={isEvtExpanded}
+                                      aria-label={
+                                        isEvtExpanded
+                                          ? `Tutup rincian peristiwa #${idx + 1}`
+                                          : `Buka rincian peristiwa #${idx + 1}`
+                                      }
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleEventRowExpand(evt.id);
+                                      }}
+                                      className={`print:hidden mt-0.5 w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                                        isEvtExpanded
+                                          ? "bg-slate-800 text-white border-slate-800"
+                                          : "bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200"
+                                      }`}
+                                    >
+                                      <ChevronDown
+                                        className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                          isEvtExpanded ? "rotate-180" : "rotate-0"
+                                        }`}
+                                      />
+                                    </button>
+                                    <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 shrink-0 mt-0.5">
+                                      #{idx + 1}
+                                    </span>
+                                    <div>
+                                      <div className="font-bold text-slate-900 leading-snug">
+                                        {evt.eventTitle}
+                                      </div>
+                                      <div className="text-[11px] text-slate-600 leading-snug line-clamp-1">
+                                        {evt.description}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 text-[10px] pl-8 sm:pl-0">
+                                    <div className="flex sm:flex-col items-center sm:items-end gap-1">
+                                      <span className="font-mono font-semibold text-[#1B365D]">
+                                        {evt.date}
+                                      </span>
+                                      {evt.associatedEvidenceCodes.length > 0 && (
+                                        <span className="font-mono text-[10px] text-slate-500">
+                                          Bukti: {evt.associatedEvidenceCodes.join(", ")}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {isEvtExpanded && (
+                                  <div className="animate-evidence-row-slide-in px-3.5 py-3 bg-slate-50 border-t border-slate-200 text-xs space-y-2">
+                                    <div className="text-[10px] font-mono uppercase text-slate-400">
+                                      Kronologi Lengkap Peristiwa #{idx + 1} ({evt.date}
+                                      {evt.time ? ` · ${evt.time}` : ""}):
+                                    </div>
+                                    <p className="text-xs text-slate-800 leading-relaxed">
+                                      {evt.description}
+                                    </p>
+                                    {associatedItems.length > 0 && (
+                                      <div className="pt-1.5 border-t border-slate-200/70 space-y-1">
+                                        <div className="text-[10px] font-mono text-slate-500">
+                                          Alat Bukti Pendukung Peristiwa Ini:
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {associatedItems.map((evItem) => (
+                                            <span
+                                              key={evItem.id}
+                                              className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800"
+                                            >
+                                              <strong className="text-[#1B365D]">
+                                                {evItem.code}
+                                              </strong>
+                                              <span>{evItem.title}</span>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Isi Naskah Berita Acara (with subtle slide-in per rendered row) */}
+                <div id="hakku-evidence-report-body" className="text-slate-900 font-serif leading-relaxed">
+                  {effectiveReportText.split("\n").map((line, idx) => (
+                    <div
+                      key={`${idx}-${line.slice(0, 24)}`}
+                      style={{ animationDelay: `${Math.min(idx * 12, 180)}ms` }}
+                      className="animate-evidence-row-slide-in min-h-[1.25em]"
+                    >
+                      {line}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Verifikasi Regulasi & Yurisprudensi Terkini (Google Search Grounding) */}
+                <div
+                  data-html2canvas-ignore="true"
+                  className="print:hidden pt-4 mt-4 border-t border-dashed border-slate-300 font-sans space-y-3"
+                  style={{ whiteSpace: "normal" }}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-[#1B365D]" />
+                      <span className="text-xs font-bold text-slate-900">
+                        Verifikasi Rujukan Hukum Terkini (Google Search Grounding)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleVerifyLegalGrounding}
+                      disabled={isGroundingLoading}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[#1B365D] text-white hover:bg-[#13294B] disabled:opacity-60 transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>
+                        {isGroundingLoading
+                          ? "Memverifikasi Regulasi..."
+                          : "Periksa Rujukan UU & Putusan Terkini"}
+                      </span>
+                    </button>
+                  </div>
+
+                  {groundingSummary && (
+                    <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 space-y-2.5 leading-relaxed">
+                      <div className="text-[11px] font-semibold text-slate-900 flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Hasil Verifikasi Kepatuhan Alat Bukti:</span>
+                      </div>
+                      <p className="text-xs text-slate-700 whitespace-pre-line">{groundingSummary}</p>
+                      {groundingSources.length > 0 && (
+                        <div className="pt-2 border-t border-slate-200/80 space-y-1">
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">
+                            Sumber Web Terverifikasi:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {groundingSources.map((src, idx) => (
+                              <a
+                                key={`${src.uri}-${idx}`}
+                                href={src.uri}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-white border border-slate-300 text-slate-800 hover:border-[#1B365D] transition-colors"
+                              >
+                                <span className="truncate max-w-[220px]">{src.title}</span>
+                                <ExternalLink className="w-3 h-3 text-slate-500 shrink-0" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Stempel Digital Formil & Validasi Integritas HAKKU */}
-                <div className="pt-8 mt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans">
+                <div className="pt-8 mt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans" style={{ whiteSpace: "normal" }}>
                   <div className="flex items-center gap-3">
                     <div className="w-16 h-16 rounded-full border-2 border-emerald-800 p-0.5 flex items-center justify-center bg-emerald-50/50 shrink-0">
                       <div className="w-full h-full rounded-full border border-dashed border-emerald-700 flex flex-col items-center justify-center text-center p-1">
@@ -1144,7 +2570,7 @@ export function EvidenceAuditWorkspace({
                       <p className="text-[9px] text-slate-500 max-w-sm leading-tight mt-0.5">
                         Laporan Berita Acara disusun secara kronologis dan berantai menurut kaidah pembuktian hukum acara untuk SPKT Kepolisian, Posbankum, maupun mediasi Disnaker.
                       </p>
-                      <div className="flex items-center gap-2 mt-1 text-[9px] font-mono text-slate-600">
+                      <div className="flex flex-wrap items-center gap-2 mt-1 text-[9px] font-mono text-slate-600">
                         <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">
                           {verificationHash}
                         </span>
@@ -1153,12 +2579,24 @@ export function EvidenceAuditWorkspace({
                     </div>
                   </div>
 
-                  <div className="text-center border border-dashed border-slate-300 rounded-lg p-2.5 bg-slate-50/70 min-w-[130px]">
-                    <div className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">
-                      Materai Rp 10.000
-                    </div>
-                    <div className="text-[8px] text-slate-500 mt-0.5">
-                      (Untuk Pelaporan Formil)
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      data-html2canvas-ignore="true"
+                      onClick={handleSharePrintToPdf}
+                      className="print:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold bg-[#1B365D] text-white hover:bg-[#13294B] transition-colors cursor-pointer"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-white" />
+                      <span>Share / Print PDF</span>
+                    </button>
+
+                    <div className="text-center border border-dashed border-slate-300 rounded-lg p-2.5 bg-slate-50/70 min-w-[130px]">
+                      <div className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">
+                        Materai Rp 10.000
+                      </div>
+                      <div className="text-[8px] text-slate-500 mt-0.5">
+                        (Untuk Pelaporan Formil)
+                      </div>
                     </div>
                   </div>
                 </div>

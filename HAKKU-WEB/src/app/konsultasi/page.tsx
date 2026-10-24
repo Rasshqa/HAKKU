@@ -182,28 +182,67 @@ export default function KonsultasiPage() {
   const handleSaveToCase = async () => {
     if (!assessment) return;
     try {
+      const userMessagesText =
+        messages
+          .filter((m) => m.role === "user")
+          .map((m) => m.content)
+          .join("\n\n") ||
+        `Konsultasi hukum terkait ${assessment.categoryLabel}`;
+
       const res = await fetch("/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: `Konsultasi: ${assessment.categoryLabel}`,
-          category: assessment.category,
-          categoryLabel: assessment.categoryLabel,
-          urgencyLevel: assessment.urgencyLevel,
-          userStatement: messages.filter((m) => m.role === "user").map((m) => m.content).join("\n\n"),
-          clarificationData: [],
-          factsSummary: {
-            chronology: messages.filter((m) => m.role === "user").map((m) => m.content).join(" "),
-            knownFacts: assessment.confirmedFacts,
+          factSummary: {
+            originalStory: userMessagesText,
+            category: assessment.category,
+            categoryLabel: assessment.categoryLabel,
+            urgencyLevel: assessment.urgencyLevel,
+            knownFacts:
+              assessment.confirmedFacts.length > 0
+                ? assessment.confirmedFacts
+                : ["Kronologi awal tercatat melalui wawancara interaktif."],
             unknownFacts: assessment.missingEvidence,
+            clarifications: [],
           },
-          applicableRules: assessment.articlesCited.map((a) => `${a.articleLabel}: ${a.explanation}`),
-          actionOptions: [{ title: assessment.recommendedAction, rationale: "Hasil wawancara Hakki", preparation: [] }],
-          evidenceChecklist: assessment.missingEvidence.map((ev, i) => ({
-            id: `item-${i}`,
+          legalSource: {
+            id: `src-${assessment.category}`,
+            title:
+              assessment.articlesCited[0]?.articleLabel ||
+              "Peraturan Perundang-Undangan Terkait",
+            sourceUrl: "https://jdih.go.id",
+            articles:
+              assessment.articlesCited.length > 0
+                ? assessment.articlesCited.map((a, idx) => ({
+                    id: `art-${idx + 1}`,
+                    lawNumber: a.topic,
+                    article: a.articleLabel,
+                    summary: a.explanation,
+                    relevanceNote: "Relevan dengan duduk perkara hasil wawancara.",
+                  }))
+                : [
+                    {
+                      id: "art-1",
+                      lawNumber: "Hukum Positif Indonesia",
+                      article: "Ketentuan Terkait",
+                      summary: assessment.recommendedAction,
+                      relevanceNote: "Evaluasi awal wawancara.",
+                    },
+                  ],
+            actionOptions: [
+              {
+                title: "Langkah Penyelesaian yang Direkomendasikan",
+                rationale: assessment.recommendedAction,
+              },
+            ],
+            uncertainties: assessment.missingEvidence,
+          },
+          checklistItems: assessment.missingEvidence.map((ev, i) => ({
+            id: `item-${i + 1}`,
             title: ev,
-            description: "Dianjurkan dilengkapi untuk memperkuat pembuktian",
-            required: false,
+            description: "Dokumen pendukung untuk memperkuat pembuktian perkara.",
+            required: i === 0,
             isCompleted: false,
           })),
         }),

@@ -16,12 +16,12 @@ export interface HakkiDuoInteractiveProps {
 
 const HAKKI_CLICK_TIPS = [
   "Hakki siap bantu hitung hak pesangon sesuai PP 35/2021!",
-  "Ingat: simpan bukti tangkapan layar percakapan dan mutasi bank ya!",
-  "Sengketa sewa? Cek pasal 1365 KUHPerdata tentang ganti rugi.",
-  "Ada intimidasi pinjol? Laporkan ke Satgas PASTI OJK!",
-  "PHK sepihak wajib didahului perundingan bipartit menurut UU 2/2004.",
-  "Kuitansi dan invoice adalah alat bukti surat kuat (Pasal 1868 KUHPerdata).",
-  "Semua data Anda terlindungi UU PDP dan hanya tersimpan di perangkat Anda!",
+  "Simpan bukti tangkapan layar percakapan dan mutasi bank sebagai alat bukti sah UU ITE.",
+  "Sengketa sewa atau deposit? Cek Pasal 1238 & 1365 KUHPerdata tentang wanprestasi dan ganti rugi.",
+  "Ada intimidasi pinjol ilegal? Amankan bukti teror dan laporkan ke Satgas PASTI OJK.",
+  "PHK sepihak wajib didahului perundingan bipartit tertulis menurut UU No. 2 Tahun 2004.",
+  "Kuitansi, kontrak, dan bukti transfer adalah fondasi pembuktian perdata yang kuat.",
+  "Semua data Anda terlindungi prinsip privasi UU PDP No. 27 Tahun 2022.",
 ];
 
 export function HakkiDuoInteractive({
@@ -35,6 +35,9 @@ export function HakkiDuoInteractive({
 }: HakkiDuoInteractiveProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
+  const [headOffset, setHeadOffset] = useState({ x: 0, y: 0, rotate: 0 });
+  const [proximity, setProximity] = useState(0); // 0 (far) -> 1 (very close / hovered)
+  const [isHovered, setIsHovered] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
   const [isBouncing, setIsBouncing] = useState(false);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
@@ -45,44 +48,43 @@ export function HakkiDuoInteractive({
   const idPrefix = rawId.replace(/[^a-zA-Z0-9]/g, "");
   const furGradId = `${idPrefix}-fur`;
   const creamGradId = `${idPrefix}-cream`;
-  const earGradId = `${idPrefix}-ear`;
-  const tieGradId = `${idPrefix}-tie`;
-  const goldGradId = `${idPrefix}-gold`;
+  const suitGradId = `${idPrefix}-suit`;
+  const haloGradId = `${idPrefix}-halo`;
 
   const getMilestoneMessage = useCallback(() => {
     if (customMessage) return customMessage;
-    if (isTyping) return "Hakki lagi mencatat kronologimu...";
+    if (isTyping) return "Hakki sedang memetakan kronologi dan entitas hukum Anda...";
     if (characterCount === 0) {
       if (currentTipIndex > 0) {
         return HAKKI_CLICK_TIPS[(currentTipIndex - 1) % HAKKI_CLICK_TIPS.length];
       }
       if (mood === "welcoming") {
-        return "Halo! Saya Hakki si Kancil. Ceritakan masalahmu, kita urai bersama!";
+        return "Halo! Saya Hakki, pendamping hukum pintar Anda. Ceritakan duduk perkaranya, kita bedah bersama.";
       }
       if (mood === "listening") {
-        return "Saya menyimak dengan seksama. Tuliskan apa saja yang Anda alami.";
+        return "Saya menyimak dengan saksama. Tuliskan kronologi kejadian yang Anda alami.";
       }
       if (mood === "analyzing") {
-        return "Sedang menelaah pasal undang-undang yang relevan dengan kasusmu...";
+        return "Sedang mencocokkan fakta perkara dengan pasal undang-undang yang relevan...";
       }
       if (mood === "celebrating" || mood === "encouraging") {
-        return "Hebat! Posisi dan berkas langkah hukummu sudah terangkum dengan baik!";
+        return "Bagus sekali! Posisi hukum dan daftar langkah taktis Anda sudah siap.";
       }
       if (mood === "empathetic") {
-        return "Kamu tidak sendirian. Hakki siap mendampingi membedah hak dan keadilanmu.";
+        return "Anda tidak sendirian. Hakki siap mendampingi mengurai hak dan perlindungan hukum Anda.";
       }
-      return "Ceritakan masalahmu di sini. Hakki siap mendengarkan!";
+      return "Ceritakan persoalan Anda di sini. Hakki siap menganalisis dasar hukumnya.";
     }
     if (characterCount < 15) {
-      return `Bagus! Tuliskan sedikit lagi ya (${characterCount}/15 karakter).`;
+      return `Teruskan! Tambahkan sedikit detail lagi (${characterCount}/15 karakter).`;
     }
     if (characterCount < 80) {
-      return "Kronologi awal sudah mulai terlihat. Sebutkan tanggal atau nama pihak kalau ingat!";
+      return "Kronologi awal sudah terbaca. Sebutkan waktu kejadian atau pihak terkait bila ada.";
     }
-    return "Kronologi kamu sudah lengkap dan siap dianalisis!";
+    return "Kronologi lengkap dan siap dianalisis secara mendalam!";
   }, [characterCount, currentTipIndex, customMessage, isTyping, mood]);
 
-  // Pointer tracking (smooth Duolingo eye tracking)
+  // Smooth eye tracking, parallax head tilt, and mouse proximity reactivity
   useEffect(() => {
     lastPointerMoveRef.current = Date.now();
 
@@ -93,7 +95,7 @@ export function HakkiDuoInteractive({
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height * 0.4;
+      const cy = rect.top + rect.height * 0.55;
 
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
@@ -101,94 +103,168 @@ export function HakkiDuoInteractive({
       const dx = clientX - cx;
       const dy = clientY - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Proximity radius: starts reacting within 280px of the mascot center
+      const proximityRadius = 280;
+      const prox = Math.max(0, Math.min(1, 1 - dist / proximityRadius));
+      setProximity(prox);
+
       if (dist === 0) return;
 
-      const maxOff = 3.6;
-      const factor = Math.min(dist / 220, 1) * maxOff;
-      setEyeOffset({ x: (dx / dist) * factor, y: (dy / dist) * factor });
+      const maxEyeOff = 3.0;
+      const eyeFactor = Math.min(dist / 200, 1) * maxEyeOff;
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      setEyeOffset({
+        x: nx * eyeFactor,
+        y: ny * eyeFactor,
+      });
+
+      // Subtle head & ear parallax toward the cursor when nearby
+      const headReach = Math.min(dist / 220, 1) * (0.6 + prox * 1.4);
+      setHeadOffset({
+        x: nx * headReach * 1.4,
+        y: ny * headReach * 0.9,
+        rotate: nx * headReach * 2.6,
+      });
     };
 
-    window.addEventListener("mousemove", handlePointerMove);
-    window.addEventListener("touchmove", handlePointerMove);
+    const handlePointerLeaveWindow = () => {
+      setProximity(0);
+      setHeadOffset({ x: 0, y: 0, rotate: 0 });
+    };
+
+    window.addEventListener("mousemove", handlePointerMove, { passive: true });
+    window.addEventListener("touchmove", handlePointerMove, { passive: true });
+    document.addEventListener("mouseleave", handlePointerLeaveWindow);
     return () => {
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("touchmove", handlePointerMove);
+      document.removeEventListener("mouseleave", handlePointerLeaveWindow);
     };
   }, []);
 
-  // Autonomous Natural Blinking (2.5s-4.5s random timer)
+  // Gentle random natural blinking (with occasional natural double-blink)
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    const blink = () => {
-      setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 130);
-      timeout = setTimeout(blink, 2500 + Math.random() * 2000);
+    let outerTimeout: NodeJS.Timeout;
+    let innerTimeout1: NodeJS.Timeout;
+    let innerTimeout2: NodeJS.Timeout;
+    let innerTimeout3: NodeJS.Timeout;
+
+    const scheduleBlink = () => {
+      const nextDelay = 2400 + Math.random() * 3000;
+      outerTimeout = setTimeout(() => {
+        setIsBlinking(true);
+        const isDoubleBlink = Math.random() < 0.26;
+
+        innerTimeout1 = setTimeout(() => {
+          setIsBlinking(false);
+
+          if (isDoubleBlink) {
+            innerTimeout2 = setTimeout(() => {
+              setIsBlinking(true);
+              innerTimeout3 = setTimeout(() => {
+                setIsBlinking(false);
+                scheduleBlink();
+              }, 115);
+            }, 130);
+          } else {
+            scheduleBlink();
+          }
+        }, 125);
+      }, nextDelay);
     };
-    timeout = setTimeout(blink, 2200);
-    return () => clearTimeout(timeout);
+
+    scheduleBlink();
+    return () => {
+      clearTimeout(outerTimeout);
+      clearTimeout(innerTimeout1);
+      clearTimeout(innerTimeout2);
+      clearTimeout(innerTimeout3);
+    };
   }, []);
 
-  // Idle Detection (>2.5s without mouse movement)
+  // Idle detection
   useEffect(() => {
     const idleChecker = setInterval(() => {
-      if (lastPointerMoveRef.current > 0 && Date.now() - lastPointerMoveRef.current > 2500) {
+      if (lastPointerMoveRef.current > 0 && Date.now() - lastPointerMoveRef.current > 2600) {
         setIsIdle(true);
+        setProximity(0);
       }
     }, 1000);
-
     return () => clearInterval(idleChecker);
   }, []);
 
-  // Dynamic Idle Gaze Behavior (Curious looking around / Document scanning)
+  // Subtle idle gaze micro-movements
   useEffect(() => {
-    if (!isIdle) return;
+    if (!isIdle || isHovered) return;
 
     let step = 0;
     const gazeCycle = [
-      { x: -2.4, y: -0.6 }, // looks curiously to the left
-      { x: 0, y: 0 },       // looks forward
-      { x: 2.4, y: -0.6 },  // looks to the right
-      { x: 0, y: -1.6 },    // looks up thoughtfully
-      { x: 0, y: 0 },       // back to center
+      { x: -1.6, y: -0.3, rot: -1.2 },
+      { x: 0, y: 0, rot: 0 },
+      { x: 1.6, y: -0.3, rot: 1.2 },
+      { x: 0, y: -1.0, rot: 0.4 },
+      { x: 0, y: 0, rot: 0 },
     ];
 
     const gazeInterval = setInterval(() => {
       if (mood === "analyzing") {
-        // Horizontal clause scanning motion in analyzing mode
-        setEyeOffset((prev) => (prev.x <= 0 ? { x: 2.8, y: 0.6 } : { x: -2.8, y: 0.6 }));
+        setEyeOffset((prev) => (prev.x <= 0 ? { x: 2.1, y: 0.4 } : { x: -2.1, y: 0.4 }));
       } else {
         step = (step + 1) % gazeCycle.length;
-        setEyeOffset(gazeCycle[step]);
+        const target = gazeCycle[step];
+        setEyeOffset({ x: target.x, y: target.y });
+        setHeadOffset({ x: target.x * 0.5, y: target.y * 0.4, rotate: target.rot });
       }
-    }, 2200);
+    }, 2400);
 
     return () => clearInterval(gazeInterval);
-  }, [isIdle, mood]);
+  }, [isIdle, isHovered, mood]);
 
-  // Click handler with squash-and-stretch jump and legal tip cycle
   const handleMascotClick = () => {
     setIsBouncing(true);
+    setIsBlinking(true);
     setCurrentTipIndex((prev) => prev + 1);
-    setTimeout(() => setIsBouncing(false), 500);
+    setTimeout(() => setIsBlinking(false), 130);
+    setTimeout(() => setIsBouncing(false), 460);
   };
 
-  const sizeMap = { sm: 100, md: 160, lg: 220 };
+  const sizeMap = { sm: 108, md: 168, lg: 228 };
   const svgSize = sizeMap[size];
   const containerClass = {
-    sm: "w-[100px] h-[100px]",
-    md: "w-[160px] h-[160px]",
-    lg: "w-[220px] h-[220px]",
+    sm: "w-[108px] h-[108px]",
+    md: "w-[168px] h-[168px]",
+    lg: "w-[228px] h-[228px]",
   }[size];
+
+  // Computed proximity & hover transforms for lively micro-interactions
+  const activeEngage = isHovered ? 1 : proximity;
+  const earPerkDeg = activeEngage * 5.5;
+  const pupilScale = 1 + activeEngage * 0.08;
+  const cheekOpacity = 0.38 + activeEngage * 0.28;
 
   return (
     <div ref={containerRef} className={`relative flex flex-col items-center select-none ${className}`}>
-      {/* Speech Bubble */}
+      {/* Architectural Speech Card */}
       {showSpeechBubble && (
-        <div className="mb-3 relative max-w-xs sm:max-w-sm px-4 py-3 rounded-2xl bg-white border border-brand-border shadow-xs animate-speech-pop">
+        <div
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          className={`mb-3.5 relative max-w-xs sm:max-w-sm px-4 py-3.5 rounded-xl border-2 border-black transition-all duration-200 animate-speech-pop ${
+            isHovered
+              ? "bg-[#1B365D] text-white shadow-[5px_5px_0px_#0F172A] -translate-y-0.5"
+              : "bg-white text-black shadow-[4px_4px_0px_#1B365D]"
+          }`}
+        >
+          <div className={`w-6 h-1 mb-2 transition-colors duration-200 ${isHovered ? "bg-[#93C5FD]" : "bg-[#1B365D]"}`} />
           <div className="flex items-start gap-2.5">
             <div
-              className={`p-1.5 rounded-full shrink-0 mt-0.5 transition-colors ${
-                characterCount >= 15 ? "bg-emerald-50 text-brand-success" : "bg-blue-50 text-brand-primary"
+              className={`p-1.5 rounded-lg border shrink-0 mt-0.5 transition-colors duration-200 ${
+                characterCount >= 15 || isHovered
+                  ? "bg-[#13294B] text-[#93C5FD] border-white/25"
+                  : "bg-[#1B365D] text-white border-black"
               }`}
             >
               {characterCount >= 15 ? (
@@ -198,26 +274,53 @@ export function HakkiDuoInteractive({
               )}
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
-                <span>Hakki si Kancil</span>
-                <span className="w-1 h-1 rounded-full bg-brand-primary/40" />
-                <span className="text-brand-muted font-normal lowercase">
-                  {isTyping ? "sedang menyimak..." : mood === "analyzing" ? "menelaah hukum..." : "sahabat hukum"}
+              <div
+                className={`flex items-center gap-2 text-[10px] font-mono font-semibold uppercase tracking-wider transition-colors duration-200 ${
+                  isHovered ? "text-[#93C5FD]" : "text-black"
+                }`}
+              >
+                <span>HAKKI KANCIL</span>
+                <span className={isHovered ? "text-slate-300" : "text-brand-muted"}>·</span>
+                <span className={isHovered ? "text-slate-200" : "text-brand-muted"}>
+                  {isTyping
+                    ? "MENYIMAK"
+                    : mood === "analyzing"
+                    ? "MENELAAH PASAL"
+                    : isHovered
+                    ? "SIAP MEMBANTU"
+                    : "PENDAMPING AI"}
                 </span>
               </div>
-              <p className="text-xs text-brand-text leading-relaxed font-medium">
+              <p
+                className={`text-xs leading-relaxed font-medium transition-colors duration-200 ${
+                  isHovered ? "text-white" : "text-black"
+                }`}
+              >
                 {getMilestoneMessage()}
               </p>
             </div>
           </div>
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-b border-r border-brand-border rotate-45" />
+          <div
+            className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 border-b-2 border-r-2 border-black rotate-45 transition-colors duration-200 ${
+              isHovered ? "bg-[#1B365D]" : "bg-white"
+            }`}
+          />
         </div>
       )}
 
-      {/* 2D Duolingo-style Cartoon Kancil Mascot (Fluid Animations, No Jarring Scale Zoom) */}
+      {/* Studio-Grade Hakki Kancil Mascot with Proximity & Micro-Animations */}
       <div className="relative">
         <div
           onClick={handleMascotClick}
+          onMouseEnter={() => {
+            setIsHovered(true);
+            setProximity(1);
+          }}
+          onMouseLeave={() => {
+            setIsHovered(false);
+            setProximity(0);
+            setHeadOffset({ x: 0, y: 0, rotate: 0 });
+          }}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
@@ -227,721 +330,713 @@ export function HakkiDuoInteractive({
             }
           }}
           aria-label="Hakki si Kancil — sentuh untuk tip hukum interaktif"
-          className={`relative group cursor-pointer transition-all duration-300 ${containerClass} ${
-            isBouncing ? "animate-hakki-jump" : "hover:-translate-y-1 hover:rotate-1"
+          style={{
+            transform: !isBouncing
+              ? `translate3d(${headOffset.x * 0.4}px, ${-activeEngage * 3}px, 0)`
+              : undefined,
+          }}
+          className={`relative group cursor-pointer transition-transform duration-200 ease-out ${containerClass} ${
+            isBouncing ? "animate-hakki-jump" : ""
           }`}
         >
           <svg
-            viewBox="0 0 100 100"
+            viewBox="0 0 140 140"
             width={svgSize}
             height={svgSize}
-            className="drop-shadow-sm transition-opacity"
+            className="overflow-visible"
           >
             <defs>
               <style>{`
-                /* Rhythmic Idle Breathing Animation */
-                .hakki-breathe-group {
-                  animation: hakki-breathe-anim 3.2s ease-in-out infinite;
-                  transform-origin: 50px 92px;
+                .hakki-torso-breathe {
+                  animation: hakki-torso-anim 3.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+                  transform-origin: 70px 104px;
                 }
-                .hakki-shadow-group {
-                  animation: hakki-shadow-anim 3.2s ease-in-out infinite;
-                  transform-origin: 50px 95.5px;
+                .hakki-head-float {
+                  animation: hakki-head-anim 3.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+                  transform-origin: 70px 66px;
                 }
-                @keyframes hakki-breathe-anim {
-                  0%, 100% {
-                    transform: translateY(0px) scale(1, 1);
-                  }
-                  50% {
-                    transform: translateY(-2px) scale(1.012, 0.99);
-                  }
+                .hakki-ear-left {
+                  animation: hakki-ear-twitch-l 5.2s ease-in-out infinite;
+                  transform-origin: 46px 42px;
                 }
-                @keyframes hakki-shadow-anim {
-                  0%, 100% {
-                    transform: scale(1);
-                    opacity: 0.12;
-                  }
-                  50% {
-                    transform: scale(0.92);
-                    opacity: 0.08;
-                  }
+                .hakki-ear-right {
+                  animation: hakki-ear-twitch-r 5.8s ease-in-out infinite;
+                  transform-origin: 94px 42px;
                 }
-
-                /* Independent Ear Twitches */
-                .hakki-ear-l-group {
-                  animation: hakki-ear-l-anim 4.8s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: bottom right;
+                .hakki-tuft-sway {
+                  animation: hakki-tuft-anim 3.6s ease-in-out infinite;
+                  transform-origin: 70px 28px;
                 }
-                .hakki-ear-r-group {
-                  animation: hakki-ear-r-anim 5.4s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: bottom left;
+                .hakki-wave-paw {
+                  animation: hakki-paw-idle 2.8s ease-in-out infinite;
+                  transform-origin: 102px 92px;
                 }
-                @keyframes hakki-ear-l-anim {
-                  0%, 86%, 100% { transform: rotate(0deg); }
-                  89% { transform: rotate(-12deg); }
-                  92% { transform: rotate(5deg); }
-                  95% { transform: rotate(0deg); }
+                .hakki-wave-paw-active {
+                  animation: hakki-paw-greet 0.85s ease-in-out infinite;
+                  transform-origin: 102px 92px;
                 }
-                @keyframes hakki-ear-r-anim {
-                  0%, 80%, 100% { transform: rotate(0deg); }
-                  83% { transform: rotate(14deg); }
-                  86% { transform: rotate(-4deg); }
-                  89% { transform: rotate(0deg); }
+                .hakki-tie-pulse {
+                  animation: hakki-tie-glow 3s ease-in-out infinite;
                 }
-
-                /* Mousedeer Tail Wag */
-                .hakki-tail-group {
-                  animation: hakki-tail-anim 2.4s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: right center;
+                @keyframes hakki-torso-anim {
+                  0%, 100% { transform: translateY(0px) scale(1, 1); }
+                  50% { transform: translateY(-1.4px) scale(1.015, 0.99); }
                 }
-                @keyframes hakki-tail-anim {
-                  0%, 100% { transform: rotate(0deg); }
-                  25% { transform: rotate(-18deg); }
-                  75% { transform: rotate(14deg); }
-                }
-
-                /* Welcoming Wave */
-                .hakki-wave-group {
-                  animation: hakki-wave-anim 1.4s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: bottom left;
-                }
-                @keyframes hakki-wave-anim {
-                  0%, 100% { transform: rotate(0deg); }
-                  20% { transform: rotate(-18deg); }
-                  40% { transform: rotate(12deg); }
-                  60% { transform: rotate(-12deg); }
-                  80% { transform: rotate(6deg); }
-                }
-
-                /* Scales of Justice Balance Sway */
-                .hakki-scales-group {
-                  animation: hakki-scales-sway-anim 3.6s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: top center;
-                }
-                .hakki-pan-l-group {
-                  animation: hakki-pan-l-anim 3.6s ease-in-out infinite;
-                }
-                .hakki-pan-r-group {
-                  animation: hakki-pan-r-anim 3.6s ease-in-out infinite;
-                }
-                @keyframes hakki-scales-sway-anim {
-                  0%, 100% { transform: rotate(0deg); }
-                  50% { transform: rotate(4.5deg); }
-                }
-                @keyframes hakki-pan-l-anim {
-                  0%, 100% { transform: translateY(0px); }
-                  50% { transform: translateY(-1.8px); }
-                }
-                @keyframes hakki-pan-r-anim {
-                  0%, 100% { transform: translateY(0px); }
-                  50% { transform: translateY(1.8px); }
-                }
-
-                /* Listening Nod */
-                .hakki-listen-head-group {
-                  animation: hakki-nod-anim 2.2s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: bottom center;
-                }
-                @keyframes hakki-nod-anim {
+                @keyframes hakki-head-anim {
                   0%, 100% { transform: translateY(0px) rotate(0deg); }
-                  35% { transform: translateY(1.8px) rotate(1.4deg); }
-                  65% { transform: translateY(0.2px) rotate(-0.8deg); }
+                  50% { transform: translateY(-2.5px) rotate(0.7deg); }
                 }
-
-                /* Celebrating Cheer */
-                .hakki-cheer-l-group {
-                  animation: hakki-cheer-l-anim 0.8s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: bottom right;
+                @keyframes hakki-ear-twitch-l {
+                  0%, 84%, 100% { transform: rotate(0deg); }
+                  88% { transform: rotate(-6deg); }
+                  92% { transform: rotate(2.5deg); }
                 }
-                .hakki-cheer-r-group {
-                  animation: hakki-cheer-r-anim 0.8s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: bottom left;
+                @keyframes hakki-ear-twitch-r {
+                  0%, 78%, 100% { transform: rotate(0deg); }
+                  83% { transform: rotate(7deg); }
+                  87% { transform: rotate(-2.5deg); }
                 }
-                @keyframes hakki-cheer-l-anim {
+                @keyframes hakki-tuft-anim {
+                  0%, 100% { transform: rotate(-2deg); }
+                  50% { transform: rotate(4deg); }
+                }
+                @keyframes hakki-paw-idle {
                   0%, 100% { transform: translateY(0px) rotate(0deg); }
-                  50% { transform: translateY(-4px) rotate(-16deg); }
+                  50% { transform: translateY(-2px) rotate(-6deg); }
                 }
-                @keyframes hakki-cheer-r-anim {
-                  0%, 100% { transform: translateY(0px) rotate(0deg); }
-                  50% { transform: translateY(-4px) rotate(16deg); }
+                @keyframes hakki-paw-greet {
+                  0%, 100% { transform: translateY(-2px) rotate(0deg); }
+                  25% { transform: translateY(-5px) rotate(-18deg); }
+                  75% { transform: translateY(-3px) rotate(14deg); }
                 }
-
-                /* Analyzing Thought Pulse */
-                .hakki-thought-pulse {
-                  animation: hakki-pulse-anim 1.6s ease-in-out infinite;
-                  transform-box: fill-box;
-                  transform-origin: center center;
+                @keyframes hakki-tie-glow {
+                  0%, 100% { opacity: 0.92; }
+                  50% { opacity: 1; }
                 }
-                @keyframes hakki-pulse-anim {
-                  0%, 100% { transform: scale(0.9); opacity: 0.6; }
-                  50% { transform: scale(1.18); opacity: 1; }
-                }
-
                 @media (prefers-reduced-motion: reduce) {
-                  .hakki-breathe-group,
-                  .hakki-shadow-group,
-                  .hakki-ear-l-group,
-                  .hakki-ear-r-group,
-                  .hakki-tail-group,
-                  .hakki-wave-group,
-                  .hakki-scales-group,
-                  .hakki-pan-l-group,
-                  .hakki-pan-r-group,
-                  .hakki-listen-head-group,
-                  .hakki-cheer-l-group,
-                  .hakki-cheer-r-group,
-                  .hakki-thought-pulse {
+                  .hakki-torso-breathe,
+                  .hakki-head-float,
+                  .hakki-ear-left,
+                  .hakki-ear-right,
+                  .hakki-tuft-sway,
+                  .hakki-wave-paw,
+                  .hakki-wave-paw-active,
+                  .hakki-tie-pulse {
                     animation: none !important;
-                    transform: none !important;
                   }
                 }
               `}</style>
 
-              {/* Warm Caramel Fur Gradient */}
+              {/* Rich Sculpted Golden-Cinnamon Kancil Fur */}
               <linearGradient id={furGradId} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#DE8938" />
-                <stop offset="100%" stopColor="#BA621C" />
+                <stop offset="0%" stopColor="#FBBF24" />
+                <stop offset="48%" stopColor="#F59E0B" />
+                <stop offset="85%" stopColor="#D97706" />
+                <stop offset="100%" stopColor="#B45309" />
               </linearGradient>
 
-              {/* Soft Cream Belly & Muzzle Gradient */}
+              {/* Warm Ivory-Cream Kancil Facial Mask */}
               <linearGradient id={creamGradId} x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#FFFBEB" />
-                <stop offset="100%" stopColor="#FEE685" />
+                <stop offset="65%" stopColor="#FEF3C7" />
+                <stop offset="100%" stopColor="#FDE68A" />
               </linearGradient>
 
-              {/* Cute Inner Ear Gradient */}
-              <linearGradient id={earGradId} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#FDA4AF" />
-                <stop offset="100%" stopColor="#F472B6" />
+              {/* Tailored Deep Obsidian-Navy Advocate Suit */}
+              <linearGradient id={suitGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#1E293B" />
+                <stop offset="55%" stopColor="#0F172A" />
+                <stop offset="100%" stopColor="#020617" />
               </linearGradient>
 
-              {/* Paralegal Bow Tie Gradient */}
-              <linearGradient id={tieGradId} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#2563EB" />
-                <stop offset="100%" stopColor="#1D4ED8" />
-              </linearGradient>
-
-              {/* Gold Scale & Horn Accent Gradient */}
-              <linearGradient id={goldGradId} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FBBF24" />
-                <stop offset="100%" stopColor="#D97706" />
-              </linearGradient>
+              {/* Ambient Mascot Cyan Aura */}
+              <radialGradient id={haloGradId} cx="50%" cy="48%" r="50%">
+                <stop offset="0%" stopColor="#00F0FF" stopOpacity="0.34" />
+                <stop offset="65%" stopColor="#00F0FF" stopOpacity="0.1" />
+                <stop offset="100%" stopColor="#00F0FF" stopOpacity="0" />
+              </radialGradient>
             </defs>
 
-            {/* Ground Shadow with Gentle Breathe Pulse */}
-            <ellipse
-              cx="50"
-              cy="95.5"
-              rx="25"
-              ry="3.5"
-              fill="#0f172a"
-              className="hakki-shadow-group"
+            {/* Ambient Mascot Cyan Halo (Expands gently with mouse proximity) */}
+            <circle
+              cx="70"
+              cy="70"
+              r={58 + activeEngage * 5}
+              fill={`url(#${haloGradId})`}
+              style={{ transition: "r 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}
             />
 
-            {/* Entire Character Group with Living Breathing Motion */}
-            <g className="hakki-breathe-group">
-              {/* Cute Mousedeer White-Tipped Tail (Wags happily behind hip) */}
-              <g className="hakki-tail-group">
-                <path
-                  d="M 33,83 C 25,81 20,84 18,88 C 19,90 22,90 26,87 C 29,85 31,86 33,84 Z"
-                  fill={`url(#${furGradId})`}
-                  stroke="#A15312"
-                  strokeWidth="0.6"
-                />
-                <path
-                  d="M 18,88 C 19,90 22,90 24,88 C 22,87 19,87 18,88 Z"
-                  fill="#FFFFFF"
-                />
-              </g>
+            {/* Crisp Offset Medallion Base */}
+            <circle
+              cx={73 + activeEngage * 1.2}
+              cy={74 + activeEngage * 1.2}
+              r="51"
+              fill={isHovered ? "#00F0FF" : "#0F172A"}
+              style={{ transition: "fill 0.2s ease, cx 0.2s ease, cy 0.2s ease" }}
+            />
+            <circle
+              cx="70"
+              cy="70"
+              r="51"
+              fill="#FFFDF9"
+              stroke="#0F172A"
+              strokeWidth="2.8"
+            />
+            {/* Subtle Inner Studio Ring */}
+            <circle
+              cx="70"
+              cy="70"
+              r="46.5"
+              fill="none"
+              stroke="#E2E8F0"
+              strokeWidth="1"
+            />
 
-              {/* Little Stylized Golden Horn Buds (Kancil cartoon crown accent) */}
-              <g>
-                {/* Left Horn */}
-                <path
-                  d="M 37,23 C 34,16 28,11 25,8 C 23.5,6.5 21.5,8 22.5,10 C 24.5,13 28.5,17 31.5,22 C 32.5,24 35,25 37,23 Z"
-                  fill={`url(#${goldGradId})`}
-                />
-                <path
-                  d="M 27,13.5 C 22.5,13.5 20,15.5 21,17.5 C 22,18.5 24.5,17.5 28,15.5 Z"
-                  fill={`url(#${goldGradId})`}
-                />
-                {/* Right Horn */}
-                <path
-                  d="M 63,23 C 66,16 72,11 75,8 C 76.5,6.5 78.5,8 77.5,10 C 75.5,13 71.5,17 68.5,22 C 67.5,24 65,25 63,23 Z"
-                  fill={`url(#${goldGradId})`}
-                />
-                <path
-                  d="M 73,13.5 C 77.5,13.5 80,15.5 79,17.5 C 78,18.5 75.5,17.5 72,15.5 Z"
-                  fill={`url(#${goldGradId})`}
-                />
-              </g>
+            {/* Breathing Torso & Advocate Blazer Group */}
+            <g className="hakki-torso-breathe">
+              {/* Warm Neck & Kancil White Throat Stripe */}
+              <path
+                d="M 61,74 L 79,74 L 81,86 L 59,86 Z"
+                fill="#D97706"
+                stroke="#0F172A"
+                strokeWidth="2"
+              />
+              <path d="M 66,75 L 74,75 L 75,85 L 65,85 Z" fill="#FFFBEB" />
 
-              {/* Deer Ears (Independently Animated Twitches) */}
-              <g>
-                {/* Left Ear */}
-                <g className="hakki-ear-l-group">
-                  <path
-                    d="M 31,31 C 23,28 12,20 12,12 C 19,13 28,21 34,27 Z"
-                    fill={`url(#${furGradId})`}
-                    stroke="#A15312"
-                    strokeWidth="0.8"
-                  />
-                  <path
-                    d="M 29,29 C 23,26 16,20 16,14 C 20,15 26,21 31,26 Z"
-                    fill={`url(#${earGradId})`}
-                  />
-                </g>
+              {/* Tailored Advocate Blazer & Shoulders */}
+              <path
+                d="M 35,114 C 36,90 48,81 70,81 C 92,81 104,90 105,114 C 88,122 52,122 35,114 Z"
+                fill={`url(#${suitGradId})`}
+                stroke="#0F172A"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+              />
 
-                {/* Right Ear */}
-                <g className="hakki-ear-r-group">
-                  <path
-                    d="M 69,31 C 77,28 88,20 88,12 C 81,13 72,21 66,27 Z"
-                    fill={`url(#${furGradId})`}
-                    stroke="#A15312"
-                    strokeWidth="0.8"
-                  />
-                  <path
-                    d="M 71,29 C 77,26 84,20 84,14 C 80,15 74,21 69,26 Z"
-                    fill={`url(#${earGradId})`}
-                  />
-                </g>
-              </g>
+              {/* Crisp White Dress Shirt & Spread Collar */}
+              <path
+                d="M 55,81 L 70,105 L 85,81 Z"
+                fill="#FFFFFF"
+                stroke="#0F172A"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M 56,80 L 66,89 L 61,93 L 52,84 Z"
+                fill="#F8FAFC"
+                stroke="#0F172A"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M 84,80 L 74,89 L 79,93 L 88,84 Z"
+                fill="#F8FAFC"
+                stroke="#0F172A"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
 
-              {/* Head & Facial Group (Nods attentively in listening mood) */}
-              <g className={mood === "listening" ? "hakki-listen-head-group" : ""}>
-                {/* Head (Plush Duolingo-style Rounded Deer Face) */}
-                <path
-                  d="M 30,42 C 29,26 71,26 70,42 C 73,50 71,59 64,62 C 57,65 43,65 36,62 C 29,59 27,50 30,42 Z"
-                  fill={`url(#${furGradId})`}
-                />
+              {/* Vibrant Mascot Cyan Silk Tie + Gold Tie Bar */}
+              <path
+                d="M 66.5,86 L 73.5,86 L 75,103 L 70,109 L 65,103 Z"
+                fill="#00F0FF"
+                stroke="#0F172A"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+                className="hakki-tie-pulse"
+              />
+              {/* Tie Knot */}
+              <path
+                d="M 65.5,82.5 L 74.5,82.5 L 73,87.5 L 67,87.5 Z"
+                fill="#00D4E2"
+                stroke="#0F172A"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              />
+              {/* Gold Tie Clip */}
+              <rect
+                x="66"
+                y="95"
+                width="8"
+                height="2.2"
+                rx="1"
+                fill="#FBBF24"
+                stroke="#0F172A"
+                strokeWidth="0.9"
+              />
 
-                {/* Cute Forehead Hair Tuft */}
-                <path
-                  d="M 47,24 C 47,19 50,17 50,17 C 50,17 53,19 53,24 Z"
-                  fill={`url(#${goldGradId})`}
-                />
+              {/* Notched Blazer Lapels */}
+              <path
+                d="M 53,82 L 46,96 L 54,98 L 51,103 L 66,108"
+                fill="none"
+                stroke="#334155"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M 87,82 L 94,96 L 86,98 L 89,103 L 74,108"
+                fill="none"
+                stroke="#334155"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
 
-                {/* Thinking Sparkle in Analyzing Mood */}
-                {mood === "analyzing" && (
-                  <g className="hakki-thought-pulse">
+              {/* Cyan Pocket Square & Gold Scales Lapel Pin */}
+              <path
+                d="M 82,99 L 87,95 L 91,99 Z"
+                fill="#00F0FF"
+                stroke="#0F172A"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+              />
+              <circle
+                cx="54"
+                cy="93"
+                r={3.2 + activeEngage * 0.4}
+                fill="#FBBF24"
+                stroke="#0F172A"
+                strokeWidth="1.3"
+                style={{ transition: "r 0.2s ease" }}
+              />
+              <circle cx="54" cy="93" r="1.2" fill="#00F0FF" />
+            </g>
+
+            {/* Head & Ears Parallax Group (Reacts to mouse proximity & direction) */}
+            <g
+              style={{
+                transform: `translate3d(${headOffset.x}px, ${headOffset.y}px, 0) rotate(${headOffset.rotate}deg)`,
+                transformOrigin: "70px 64px",
+                transition: "transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+              }}
+            >
+              <g className="hakki-head-float">
+                {/* Left Leaf-Shaped Kancil Ear */}
+                <g
+                  style={{
+                    transform: `rotate(${-earPerkDeg}deg)`,
+                    transformOrigin: "46px 42px",
+                    transition: "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                >
+                  <g className="hakki-ear-left">
                     <path
-                      d="M 50,4 L 51.5,9.5 L 57,11 L 51.5,12.5 L 50,18 L 48.5,12.5 L 43,11 L 48.5,9.5 Z"
-                      fill="#F59E0B"
+                      d="M 47,44 C 33,38 20,25 22,12 C 34,11 48,22 54,37 Z"
+                      fill={`url(#${furGradId})`}
+                      stroke="#0F172A"
+                      strokeWidth="2.4"
+                      strokeLinejoin="round"
                     />
-                    <circle cx="50" cy="11" r="1.5" fill="#FFFBEB" />
+                    {/* Dark Chestnut Ear Tip Accent */}
+                    <path
+                      d="M 22,12 C 26,12 31,14 34,17 C 29,18 25,19 23,22 C 21.5,18 21.5,15 22,12 Z"
+                      fill="#78350F"
+                    />
+                    {/* Warm Rose Inner Ear */}
+                    <path
+                      d="M 46,40 C 36,35 28,25 28,17 C 36,18 44,26 49,36 Z"
+                      fill="#FDA4AF"
+                    />
+                    {/* Inner Ear Cream Fluff */}
+                    <path
+                      d="M 43,39 C 39,35 37,32 39,29 C 42,31 45,34 47,38 Z"
+                      fill="#FFFBEB"
+                    />
+                    {/* Cyan Tech Ear Stud */}
+                    <circle
+                      cx="26"
+                      cy="22"
+                      r="2.4"
+                      fill="#00F0FF"
+                      stroke="#0F172A"
+                      strokeWidth="1.2"
+                    />
                   </g>
-                )}
+                </g>
 
-                {/* Muzzle (Lighter Snout Patch) */}
+                {/* Right Leaf-Shaped Kancil Ear */}
+                <g
+                  style={{
+                    transform: `rotate(${earPerkDeg}deg)`,
+                    transformOrigin: "94px 42px",
+                    transition: "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                >
+                  <g className="hakki-ear-right">
+                    <path
+                      d="M 93,44 C 107,38 120,25 118,12 C 106,11 92,22 86,37 Z"
+                      fill={`url(#${furGradId})`}
+                      stroke="#0F172A"
+                      strokeWidth="2.4"
+                      strokeLinejoin="round"
+                    />
+                    {/* Dark Chestnut Ear Tip Accent */}
+                    <path
+                      d="M 118,12 C 114,12 109,14 106,17 C 111,18 115,19 117,22 C 118.5,18 118.5,15 118,12 Z"
+                      fill="#78350F"
+                    />
+                    {/* Warm Rose Inner Ear */}
+                    <path
+                      d="M 94,40 C 104,35 112,25 112,17 C 104,18 96,26 91,36 Z"
+                      fill="#FDA4AF"
+                    />
+                    {/* Inner Ear Cream Fluff */}
+                    <path
+                      d="M 97,39 C 101,35 103,32 101,29 C 98,31 95,34 93,38 Z"
+                      fill="#FFFBEB"
+                    />
+                  </g>
+                </g>
+
+                {/* Sculpted Kancil Head with Fluffy Cheek Tufts */}
                 <path
-                  d="M 37,49 C 37,44 63,44 63,49 C 64,57 60,63 50,63 C 40,63 36,57 37,49 Z"
+                  d="M 40,51 C 41,29 99,29 100,51 C 105,56 106,63 101,67 C 103,70 99,75 94,76 C 87,82 79,84 70,84 C 61,84 53,82 46,76 C 41,75 37,70 39,67 C 34,63 35,56 40,51 Z"
+                  fill={`url(#${furGradId})`}
+                  stroke="#0F172A"
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
+                />
+
+                {/* Kancil Crown Forehead Blaze & Cinnamon Stripe */}
+                <path
+                  d="M 65,33 Q 70,45 70,51 Q 70,45 75,33 Z"
+                  fill="#B45309"
+                  opacity="0.55"
+                />
+                <ellipse cx="70" cy="41" rx="3.8" ry="6.2" fill="#FFFBEB" opacity="0.9" />
+
+                {/* Heart-Shaped Ivory Cream Kancil Facial Mask & Muzzle */}
+                <path
+                  d="M 43,60 C 43,49 58,47 70,53 C 82,47 97,49 97,60 C 98,73 86,83 70,83 C 54,83 42,73 43,60 Z"
                   fill={`url(#${creamGradId})`}
                 />
 
-                {/* Eyebrows (Empathetic / Curious / Standard) */}
-                {mood === "empathetic" ? (
-                  <g>
-                    <path
-                      d="M 35,34 Q 40,31 45,34"
-                      stroke="#7C2D12"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <path
-                      d="M 55,34 Q 60,31 65,34"
-                      stroke="#7C2D12"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                  </g>
-                ) : (
-                  <g>
-                    <path
-                      d="M 35,32 Q 40,29 45,32"
-                      stroke="#7C2D12"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <path
-                      d="M 55,32 Q 60,29 65,32"
-                      stroke="#7C2D12"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                  </g>
-                )}
+                {/* Cute Crown Fur Tuft & Dapper Legal Beret/Crest */}
+                <g className="hakki-tuft-sway">
+                  <path
+                    d="M 63,33 C 64,24 69,21 72,20 C 71,25 74,27 76,33"
+                    fill={`url(#${furGradId})`}
+                    stroke="#0F172A"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M 68,32 C 70,25 74,23 77,23 C 75,27 76,30 77,33"
+                    fill="#FBBF24"
+                    stroke="#0F172A"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
 
-                {/* Eyes */}
-                {isBlinking ? (
-                  <g>
-                    <path
-                      d="M 34,42 Q 40,46 46,42"
-                      stroke="#1E130B"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <path
-                      d="M 54,42 Q 60,46 66,42"
-                      stroke="#1E130B"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                  </g>
-                ) : (
-                  <g>
-                    {/* Left Eye White */}
-                    <ellipse
-                      cx="40"
-                      cy="40.5"
-                      rx="6"
-                      ry="7"
-                      fill="#FFFFFF"
-                      stroke="#382110"
-                      strokeWidth="0.75"
-                    />
-                    {/* Right Eye White */}
-                    <ellipse
-                      cx="60"
-                      cy="40.5"
-                      rx="6"
-                      ry="7"
-                      fill="#FFFFFF"
-                      stroke="#382110"
-                      strokeWidth="0.75"
-                    />
-
-                    {/* Left Pupil (Follows Pointer / Idle Gaze with Smooth Transition) */}
-                    <circle
-                      cx={40 + eyeOffset.x}
-                      cy={40.5 + eyeOffset.y}
-                      r="3.6"
-                      fill="#1E130B"
-                      style={{ transition: "cx 0.16s ease-out, cy 0.16s ease-out" }}
-                    />
-                    {/* Right Pupil (Follows Pointer / Idle Gaze with Smooth Transition) */}
-                    <circle
-                      cx={60 + eyeOffset.x}
-                      cy={40.5 + eyeOffset.y}
-                      r="3.6"
-                      fill="#1E130B"
-                      style={{ transition: "cx 0.16s ease-out, cy 0.16s ease-out" }}
-                    />
-
-                    {/* Primary High-Gloss Shines */}
-                    <circle
-                      cx={41.5 + eyeOffset.x * 0.4}
-                      cy={38.8 + eyeOffset.y * 0.4}
-                      r="1.4"
-                      fill="#FFFFFF"
-                      style={{ transition: "cx 0.16s ease-out, cy 0.16s ease-out" }}
-                    />
-                    <circle
-                      cx={61.5 + eyeOffset.x * 0.4}
-                      cy={38.8 + eyeOffset.y * 0.4}
-                      r="1.4"
-                      fill="#FFFFFF"
-                      style={{ transition: "cx 0.16s ease-out, cy 0.16s ease-out" }}
-                    />
-
-                    {/* Secondary Cute Anime Shines */}
-                    <circle
-                      cx={38.5 + eyeOffset.x * 0.4}
-                      cy={42.2 + eyeOffset.y * 0.4}
-                      r="0.8"
-                      fill="#FFFFFF"
-                      opacity="0.85"
-                      style={{ transition: "cx 0.16s ease-out, cy 0.16s ease-out" }}
-                    />
-                    <circle
-                      cx={58.5 + eyeOffset.x * 0.4}
-                      cy={42.2 + eyeOffset.y * 0.4}
-                      r="0.8"
-                      fill="#FFFFFF"
-                      opacity="0.85"
-                      style={{ transition: "cx 0.16s ease-out, cy 0.16s ease-out" }}
-                    />
-                  </g>
-                )}
-
-                {/* Scholarly Wire-Rim Round Glasses in Analyzing Mood */}
-                {mood === "analyzing" && (
-                  <g className="hakki-glasses">
-                    <circle cx="40" cy="40.5" r="7.2" fill="none" stroke="#D97706" strokeWidth="1.2" opacity="0.9" />
-                    <circle cx="60" cy="40.5" r="7.2" fill="none" stroke="#D97706" strokeWidth="1.2" opacity="0.9" />
-                    <path d="M 47.2,40.5 Q 50,39 52.8,40.5" fill="none" stroke="#D97706" strokeWidth="1.2" />
-                    <line x1="32.8" y1="40.5" x2="28" y2="39.5" stroke="#D97706" strokeWidth="1" strokeLinecap="round" />
-                    <line x1="67.2" y1="40.5" x2="72" y2="39.5" stroke="#D97706" strokeWidth="1" strokeLinecap="round" />
-                  </g>
-                )}
-
-                {/* Nose */}
-                <path
-                  d="M 47,49 C 47,47.5 53,47.5 53,49 C 53,51 51,52.5 50,52.5 C 49,52.5 47,51 47,49 Z"
-                  fill="#1E130B"
+                {/* Soft Rosy Cheeks (Glow warmly on proximity/hover) */}
+                <ellipse
+                  cx="47"
+                  cy="66"
+                  rx={5.5 + activeEngage * 0.8}
+                  ry={3.2 + activeEngage * 0.4}
+                  fill="#FB7185"
+                  opacity={cheekOpacity}
+                  style={{ transition: "opacity 0.2s ease, rx 0.2s ease, ry 0.2s ease" }}
                 />
-                <ellipse cx="49" cy="48.5" rx="1" ry="0.6" fill="#6B4D36" opacity="0.6" />
+                <ellipse
+                  cx="93"
+                  cy="66"
+                  rx={5.5 + activeEngage * 0.8}
+                  ry={3.2 + activeEngage * 0.4}
+                  fill="#FB7185"
+                  opacity={cheekOpacity}
+                  style={{ transition: "opacity 0.2s ease, rx 0.2s ease, ry 0.2s ease" }}
+                />
 
-                {/* Mouth */}
-                {mood === "celebrating" ? (
+                {/* Expressive Kancil Brows (Lift gently when mouse approaches) */}
+                <g
+                  style={{
+                    transform: `translateY(${-activeEngage * 1.6}px)`,
+                    transition: "transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                >
+                  {mood === "empathetic" ? (
+                    <g stroke="#451A03" strokeWidth="2.5" strokeLinecap="round" fill="none">
+                      <path d="M 46,45 Q 52,42.5 58,46" />
+                      <path d="M 82,46 Q 88,42.5 94,45" />
+                    </g>
+                  ) : (
+                    <g stroke="#451A03" strokeWidth="2.6" strokeLinecap="round" fill="none">
+                      <path d="M 46,44 Q 52,40.5 58,44" />
+                      <path d="M 82,44 Q 88,40.5 94,44" />
+                    </g>
+                  )}
+                </g>
+
+                {/* Soulful Layered Studio Eyes with Smooth Blink & Vibrant #00F0FF Crescent */}
+                <g
+                  style={{
+                    transform: isBlinking ? "scaleY(0.07)" : "scaleY(1)",
+                    transformOrigin: "70px 56px",
+                    transition: "transform 0.09s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                >
+                  {/* Left Eye Sclera & Upper Lash Line */}
+                  <ellipse
+                    cx="54"
+                    cy="56"
+                    rx="7.6"
+                    ry="8.4"
+                    fill="#FFFFFF"
+                    stroke="#0F172A"
+                    strokeWidth="2.2"
+                  />
+                  <path
+                    d="M 45.8,53.5 C 48,47 59,47 61.8,53.5"
+                    fill="none"
+                    stroke="#0F172A"
+                    strokeWidth="2.8"
+                    strokeLinecap="round"
+                  />
+                  <g
+                    style={{
+                      transform: `translate3d(${eyeOffset.x}px, ${eyeOffset.y}px, 0) scale(${pupilScale})`,
+                      transformOrigin: "54px 56px",
+                      transition: "transform 0.12s cubic-bezier(0.16, 1, 0.3, 1)",
+                    }}
+                  >
+                    <circle cx="54" cy="56" r="5.4" fill="#0F172A" />
+                    {/* Mascot Signature #00F0FF Lower Iris Glow */}
+                    <path
+                      d="M 50.4,57.6 A 3.9,3.9 0 0,0 57.6,57.6"
+                      fill="none"
+                      stroke="#00F0FF"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="56" cy="53.4" r="2.1" fill="#FFFFFF" />
+                    <circle cx="51.8" cy="58.4" r="1.05" fill="#FFFFFF" />
+                  </g>
+
+                  {/* Right Eye Sclera & Upper Lash Line */}
+                  <ellipse
+                    cx="86"
+                    cy="56"
+                    rx="7.6"
+                    ry="8.4"
+                    fill="#FFFFFF"
+                    stroke="#0F172A"
+                    strokeWidth="2.2"
+                  />
+                  <path
+                    d="M 78.2,53.5 C 81,47 92,47 94.2,53.5"
+                    fill="none"
+                    stroke="#0F172A"
+                    strokeWidth="2.8"
+                    strokeLinecap="round"
+                  />
+                  <g
+                    style={{
+                      transform: `translate3d(${eyeOffset.x}px, ${eyeOffset.y}px, 0) scale(${pupilScale})`,
+                      transformOrigin: "86px 56px",
+                      transition: "transform 0.12s cubic-bezier(0.16, 1, 0.3, 1)",
+                    }}
+                  >
+                    <circle cx="86" cy="56" r="5.4" fill="#0F172A" />
+                    {/* Mascot Signature #00F0FF Lower Iris Glow */}
+                    <path
+                      d="M 82.4,57.6 A 3.9,3.9 0 0,0 89.6,57.6"
+                      fill="none"
+                      stroke="#00F0FF"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="88" cy="53.4" r="2.1" fill="#FFFFFF" />
+                    <circle cx="83.8" cy="58.4" r="1.05" fill="#FFFFFF" />
+                  </g>
+                </g>
+
+                {/* Closed Eyelid Line Overlay during Blink */}
+                {isBlinking && (
+                  <g stroke="#0F172A" strokeWidth="2.6" strokeLinecap="round" fill="none">
+                    <path d="M 46.5,56.5 Q 54,60 61.5,56.5" />
+                    <path d="M 78.5,56.5 Q 86,60 93.5,56.5" />
+                  </g>
+                )}
+
+                {/* Sleek Cyan Legal Frames in Analyzing Mode */}
+                {mood === "analyzing" && (
                   <g>
-                    <path d="M 45,54 Q 50,61 55,54 Z" fill="#881337" />
-                    <path d="M 47,57 Q 50,61 53,57 Z" fill="#FB7185" />
+                    <rect
+                      x="44"
+                      y="47"
+                      width="20"
+                      height="17"
+                      rx="6"
+                      fill="#00F0FF"
+                      fillOpacity="0.14"
+                      stroke="#0F172A"
+                      strokeWidth="2.2"
+                    />
+                    <rect
+                      x="76"
+                      y="47"
+                      width="20"
+                      height="17"
+                      rx="6"
+                      fill="#00F0FF"
+                      fillOpacity="0.14"
+                      stroke="#0F172A"
+                      strokeWidth="2.2"
+                    />
+                    <line x1="64" y1="55" x2="76" y2="55" stroke="#00F0FF" strokeWidth="2.6" />
+                    <line x1="64" y1="55" x2="76" y2="55" stroke="#0F172A" strokeWidth="1.1" />
+                  </g>
+                )}
+
+                {/* Sculpted Kancil Snout Bridge, Velvet Nose & Friendly Smile */}
+                <ellipse cx="70" cy="64" rx="7.5" ry="5.5" fill="#FFFBEB" />
+                <path
+                  d="M 65.5,62.5 C 65.5,60 74.5,60 74.5,62.5 C 74.5,65.2 71.8,67 70,67 C 68.2,67 65.5,65.2 65.5,62.5 Z"
+                  fill="#271206"
+                />
+                <ellipse cx="68.6" cy="62" rx="1.6" ry="0.85" fill="#FFFFFF" opacity="0.75" />
+                {/* Cute Philtrum */}
+                <line
+                  x1="70"
+                  y1="67"
+                  x2="70"
+                  y2="70.2"
+                  stroke="#451A03"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                />
+
+                {mood === "celebrating" || isHovered ? (
+                  <g>
+                    <path
+                      d="M 63,70 Q 70,78 77,70 Z"
+                      fill="#9F1239"
+                      stroke="#0F172A"
+                      strokeWidth="1.9"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M 66,73.5 Q 70,71.5 74,73.5 A 4.2,3.5 0 0,1 66,73.5 Z"
+                      fill="#FB7185"
+                    />
                   </g>
                 ) : isTyping ? (
-                  <ellipse cx="50" cy="56" rx="2" ry="1.6" fill="#1E130B" />
-                ) : mood === "empathetic" ? (
-                  <path
-                    d="M 46,55 Q 50,57.5 54,55"
-                    stroke="#1E130B"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
+                  <circle cx="70" cy="72" r="2.5" fill="#0F172A" />
                 ) : (
                   <path
-                    d="M 45,54 Q 47.5,56.5 50,54 Q 52.5,56.5 55,54"
-                    stroke="#1E130B"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
+                    d="M 63.5,70.2 Q 66.8,73.8 70,70.5 Q 73.2,73.8 76.5,70.2"
                     fill="none"
+                    stroke="#0F172A"
+                    strokeWidth="2.1"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 )}
-
-                {/* Rosy Cheeks */}
-                <ellipse cx="32" cy="48" rx="3.8" ry="2.2" fill="#FB7185" opacity="0.4" />
-                <ellipse cx="68" cy="48" rx="3.8" ry="2.2" fill="#FB7185" opacity="0.4" />
               </g>
+            </g>
 
-              {/* Torso & Belly */}
-              <ellipse cx="50" cy="77" rx="18" ry="16" fill={`url(#${furGradId})`} />
-              <ellipse cx="50" cy="80" rx="12" ry="11" fill={`url(#${creamGradId})`} />
+            {/* Left Paw Holding Embossed Legal Codex ("KUHAP / UU") with Cyan Bookmark */}
+            <g>
+              <rect
+                x="25"
+                y="84"
+                width="17"
+                height="22"
+                rx="3"
+                transform="rotate(-12 33 95)"
+                fill="#1E293B"
+                stroke="#0F172A"
+                strokeWidth="2"
+              />
+              <rect
+                x="28"
+                y="86"
+                width="12"
+                height="18"
+                rx="1.5"
+                transform="rotate(-12 33 95)"
+                fill="#00F0FF"
+                fillOpacity="0.22"
+                stroke="#00F0FF"
+                strokeWidth="1"
+              />
+              {/* Bookmark Ribbon */}
+              <path
+                d="M 34,104 L 33,111 L 35.5,109.5 L 38,111 L 37,104 Z"
+                fill="#00F0FF"
+                stroke="#0F172A"
+                strokeWidth="1"
+              />
+              <ellipse
+                cx="37"
+                cy="96"
+                rx="6"
+                ry="4.8"
+                transform="rotate(18 37 96)"
+                fill={`url(#${furGradId})`}
+                stroke="#0F172A"
+                strokeWidth="2.1"
+              />
+            </g>
 
-              {/* Cute Mousedeer Chibi Fawn Spots */}
-              <circle cx="34" cy="73" r="1.3" fill="#FFFFFF" opacity="0.65" />
-              <circle cx="31" cy="77" r="1.1" fill="#FFFFFF" opacity="0.65" />
-              <circle cx="66" cy="73" r="1.3" fill="#FFFFFF" opacity="0.65" />
-              <circle cx="69" cy="77" r="1.1" fill="#FFFFFF" opacity="0.65" />
-
-              {/* Iconic Indonesian Mousedeer (Kancil) White Throat Chevron Markings */}
-              <g>
-                <path
-                  d="M 46,67 L 50,70 L 54,67"
-                  stroke="#FFFFFF"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-                <path
-                  d="M 45,71.5 L 50,74.5 L 55,71.5"
-                  stroke="#FFFFFF"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-                <path
-                  d="M 46,76 L 50,79 L 54,76"
-                  stroke="#FFFFFF"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </g>
-
-              {/* Paralegal Bow Tie with Golden Scales Pin */}
-              <g>
-                <path d="M 50,63 L 44,60.5 L 44,65.5 Z" fill={`url(#${tieGradId})`} />
-                <path d="M 50,63 L 56,60.5 L 56,65.5 Z" fill={`url(#${tieGradId})`} />
-                <circle cx="50" cy="63" r="2" fill="#1D4ED8" />
-                <circle cx="50" cy="63" r="1.1" fill={`url(#${goldGradId})`} />
-              </g>
-
-              {/* Arms / Paws & Accessories */}
-              {mood === "empathetic" ? (
-                <g>
-                  {/* Left Arm to Heart */}
-                  <path
-                    d="M 33,72 Q 41,75 45,71"
-                    stroke="#BA621C"
-                    strokeWidth="4.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  <circle cx="45" cy="71" r="2.8" fill="#5A3512" />
-                  {/* Right Arm to Heart */}
-                  <path
-                    d="M 67,72 Q 59,75 55,71"
-                    stroke="#BA621C"
-                    strokeWidth="4.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  <circle cx="55" cy="71" r="2.8" fill="#5A3512" />
-                </g>
-              ) : mood === "celebrating" ? (
-                <g>
-                  {/* Left Arm Celebrating */}
-                  <g className="hakki-cheer-l-group">
-                    <path
-                      d="M 33,69 Q 22,58 17,50"
-                      stroke="#BA621C"
-                      strokeWidth="4.5"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <circle cx="17" cy="50" r="2.8" fill="#5A3512" />
-                  </g>
-                  {/* Right Arm Celebrating */}
-                  <g className="hakki-cheer-r-group">
-                    <path
-                      d="M 67,69 Q 78,58 83,50"
-                      stroke="#BA621C"
-                      strokeWidth="4.5"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <circle cx="83" cy="50" r="2.8" fill="#5A3512" />
-                  </g>
-                </g>
-              ) : mood === "welcoming" ? (
-                <g>
-                  {/* Right Arm Waving in Continuous Greeting */}
-                  <g className="hakki-wave-group">
-                    <path
-                      d="M 67,70 Q 77,65 80,56"
-                      stroke="#BA621C"
-                      strokeWidth="4.5"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <circle cx="80" cy="56" r="2.8" fill="#5A3512" />
-                  </g>
-
-                  {/* Left Arm Holding Golden Scales of Justice */}
-                  <path
-                    d="M 33,72 Q 25,74 22,78"
-                    stroke="#BA621C"
-                    strokeWidth="4.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  <circle cx="22" cy="78" r="2.8" fill="#5A3512" />
-
-                  {/* Golden Scales of Justice with Gentle Swaying Pans */}
-                  <g className="hakki-scales-group">
-                    <line
-                      x1="16"
-                      y1="62"
-                      x2="16"
-                      y2="78"
-                      stroke="#D97706"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                    <ellipse cx="16" cy="78" rx="3.5" ry="1.2" fill="#B45309" />
-                    <line
-                      x1="9"
-                      y1="65"
-                      x2="23"
-                      y2="65"
-                      stroke="#D97706"
-                      strokeWidth="1.4"
-                      strokeLinecap="round"
-                    />
-
-                    {/* Left Pan */}
-                    <g className="hakki-pan-l-group">
-                      <line x1="10" y1="65" x2="7.5" y2="71" stroke="#F59E0B" strokeWidth="0.8" />
-                      <line x1="10" y1="65" x2="12.5" y2="71" stroke="#F59E0B" strokeWidth="0.8" />
-                      <path d="M 6.5,71 Q 10,73.5 13.5,71 Z" fill={`url(#${goldGradId})`} />
-                    </g>
-
-                    {/* Right Pan */}
-                    <g className="hakki-pan-r-group">
-                      <line x1="22" y1="65" x2="19.5" y2="71" stroke="#F59E0B" strokeWidth="0.8" />
-                      <line x1="22" y1="65" x2="24.5" y2="71" stroke="#F59E0B" strokeWidth="0.8" />
-                      <path d="M 18.5,71 Q 22,73.5 25.5,71 Z" fill={`url(#${goldGradId})`} />
-                    </g>
-                    <circle cx="16" cy="65" r="1.3" fill="#B45309" />
-                  </g>
-                </g>
-              ) : (
-                <g>
-                  {/* Resting Paws */}
-                  <path
-                    d="M 33,73 Q 26,76 33,81"
-                    stroke="#BA621C"
-                    strokeWidth="4.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  <circle cx="33" cy="81" r="2.8" fill="#5A3512" />
-                  <path
-                    d="M 67,73 Q 74,76 67,81"
-                    stroke="#BA621C"
-                    strokeWidth="4.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  <circle cx="67" cy="81" r="2.8" fill="#5A3512" />
-                </g>
-              )}
-
-              {/* Hooves / Feet (Grounded firmly on the shadow) */}
-              <g>
-                <ellipse cx="42" cy="92" rx="5.5" ry="3" fill="#BA621C" />
-                <ellipse cx="42" cy="93" rx="4.5" ry="1.6" fill="#3D2314" />
-                <ellipse cx="58" cy="92" rx="5.5" ry="3" fill="#BA621C" />
-                <ellipse cx="58" cy="93" rx="4.5" ry="1.6" fill="#3D2314" />
-              </g>
+            {/* Expressive Waving Right Paw (Waves warmly when hovered or mouse is nearby) */}
+            <g className={activeEngage > 0.35 ? "hakki-wave-paw-active" : "hakki-wave-paw"}>
+              <ellipse
+                cx="104"
+                cy="90"
+                rx="6.4"
+                ry="5.2"
+                transform="rotate(-26 104 90)"
+                fill={`url(#${furGradId})`}
+                stroke="#0F172A"
+                strokeWidth="2.2"
+              />
+              {/* Cute Kancil Paw Pad Detail */}
+              <circle cx="105" cy="89.5" r="1.8" fill="#FEF3C7" opacity="0.9" />
             </g>
           </svg>
         </div>
 
-        {/* Status Badge */}
-        <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-brand-border shadow-xs text-[11px] font-bold text-brand-text whitespace-nowrap z-20 transition-colors">
+        {/* Crisp Monospace Status Tag */}
+        <div
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          className={`absolute -bottom-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-black text-[10px] font-mono font-bold uppercase tracking-wider whitespace-nowrap z-20 transition-all duration-200 ${
+            isHovered
+              ? "bg-[#1B365D] text-white shadow-[3px_3px_0px_#0F172A] -translate-y-0.5"
+              : "bg-[#0F172A] text-white shadow-[2px_2px_0px_#1B365D]"
+          }`}
+        >
           {mood === "empathetic" ? (
             <>
-              <Heart className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
-              <span className="text-rose-700">Mendengar dengan Empati</span>
+              <Heart className="w-3 h-3 text-[#93C5FD]" />
+              <span>PENDAMPING EMPATI</span>
             </>
           ) : isTyping ? (
             <>
-              <BookOpen className="w-3.5 h-3.5 text-amber-600 animate-bounce" />
-              <span className="text-amber-800">Mencatat...</span>
+              <BookOpen className="w-3 h-3 text-[#93C5FD]" />
+              <span>MENCATAT FAKTA...</span>
             </>
           ) : characterCount >= 15 ? (
             <>
-              <CheckCircle2 className="w-3.5 h-3.5 text-brand-success" />
-              <span className="text-brand-success">Kronologi Siap!</span>
+              <CheckCircle2 className="w-3 h-3 text-[#93C5FD]" />
+              <span>KRONOLOGI SIAP</span>
             </>
           ) : (
             <>
-              <Scale className="w-3.5 h-3.5 text-brand-primary" />
-              <span>Sahabat Hukum Warga</span>
+              <Scale className="w-3 h-3 text-[#93C5FD]" />
+              <span>HAKKI · AI PARALEGAL</span>
             </>
           )}
         </div>
       </div>
 
-      <span className="mt-3.5 text-[10px] text-brand-muted font-medium">
-        Sentuh Hakki untuk tip hukum interaktif!
+      <span className="mt-4 text-[10px] font-mono text-brand-muted uppercase tracking-wider">
+        Klik Hakki untuk tips hukum
       </span>
     </div>
   );

@@ -1,54 +1,98 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: #005bbb;
-  --color-brand-primary-hover: #004691;
-  --color-brand-primary-light: #e8f0fe;
-  --color-brand-accent: #ff8c00;
-  --color-brand-accent-hover: #e07b00;
-  --color-brand-bg: #f9fafb;
+  --font-sans: var(--font-sora), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Authoritative Deep Navy & Architectural Slate Palette (Non-Slop High-Craft Legal UI) */
+  --color-brand-cyan: #1b365d;
+  --color-brand-cyan-dark: #13294b;
+  --color-brand-primary: #1b365d;
+  --color-brand-primary-hover: #13294b;
+  --color-brand-primary-light: #e8eef5;
+  --color-brand-accent: #1b365d;
+  --color-brand-accent-hover: #13294b;
+  --color-brand-bg: #f8f9fa;
   --color-brand-surface: #ffffff;
-  --color-brand-text: #202124;
-  --color-brand-muted: #5f6368;
-  --color-brand-border: #dadce0;
-  --color-brand-success: #137333;
-  --color-brand-success-light: #e6f4ea;
-  --color-brand-warning: #8a4b08;
-  --color-brand-warning-light: #fef7e0;
-  --color-brand-danger: #b3261e;
-  --color-brand-danger-light: #fce8e6;
-  --radius-card: 12px;
-  --radius-control: 8px;
+  --color-brand-text: #0f172a;
+  --color-brand-muted: #475569;
+  --color-brand-border: #e2e8f0;
+  --color-brand-success: #0d9488;
+  --color-brand-success-light: #ccfbf1;
+  --color-brand-warning: #b45309;
+  --color-brand-warning-light: #fef3c7;
+  --color-brand-danger: #dc2626;
+  --color-brand-danger-light: #fee2e2;
+  --radius-card: 14px;
+  --radius-control: 10px;
 }
 
 :root {
-  --color-primary: #005bbb;
-  --color-primary-hover: #004691;
-  --color-accent: #ff8c00;
-  --color-bg: #f9fafb;
+  --color-primary: #1b365d;
+  --color-primary-hover: #13294b;
+  --color-accent: #1b365d;
+  --color-bg: #f8f9fa;
   --color-surface: #ffffff;
-  --color-text: #202124;
-  --color-muted: #5f6368;
-  --color-border: #dadce0;
-  --color-success: #137333;
-  --color-warning: #8a4b08;
-  --color-danger: #b3261e;
-  --radius-card: 12px;
-  --radius-control: 8px;
+  --color-text: #0f172a;
+  --color-muted: #475569;
+  --color-border: #e2e8f0;
+  --color-success: #0d9488;
+  --color-warning: #b45309;
+  --color-danger: #dc2626;
+  --radius-card: 14px;
+  --radius-control: 10px;
   --space-unit: 4px;
 }
 
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  line-height: 1.5;
+  font-family: var(--font-sora), system-ui, -apple-system, sans-serif;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Ensure accessible focus outline */
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-sora), system-ui, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+code, pre, .font-mono, .tabular-nums {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Harmonize legacy blue tints across subpages to Refined Deep Navy (#1B365D) */
+.bg-blue-50,
+.bg-blue-50\/80,
+.bg-blue-50\/70,
+.bg-blue-50\/50,
+.bg-blue-50\/40,
+.bg-indigo-50 {
+  background-color: #edf2f7 !important;
+}
+
+.bg-blue-100 {
+  background-color: #dbe4f0 !important;
+}
+
+.border-blue-100,
+.border-blue-200,
+.border-indigo-200 {
+  border-color: #cbd5e1 !important;
+}
+
+.text-blue-700,
+.text-blue-600,
+.text-indigo-700,
+.text-indigo-600 {
+  color: #1b365d !important;
+}
+
+/* Ensure accessible focus outline with Deep Navy */
 :focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid #1b365d;
   outline-offset: 2px;
 }
 
@@ -56,6 +100,51 @@ body {
 .min-touch-target {
   min-height: 44px;
   min-width: 44px;
+}
+
+/* Signature Architectural Card & Button Utilities (Dark Navy & Obsidian) */
+.aether-card {
+  background: #ffffff;
+  border: 1.5px solid #0f172a;
+  box-shadow: 4px 4px 0px #1b365d;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aether-card-cyan {
+  background: #1b365d;
+  color: #ffffff;
+  border: 1.5px solid #0f172a;
+  box-shadow: 4px 4px 0px #0f172a;
+}
+
+.aether-btn-primary {
+  background: #1b365d;
+  color: #ffffff;
+  border: 1.5px solid #0f172a;
+  box-shadow: 3px 3px 0px #0f172a;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aether-btn-primary:hover {
+  background: #13294b;
+  color: #ffffff;
+  box-shadow: 4px 4px 0px #0f172a;
+  transform: translate(-1px, -1px);
+}
+
+.aether-btn-cyan {
+  background: #234575;
+  color: #ffffff;
+  border: 1.5px solid #0f172a;
+  box-shadow: 3px 3px 0px #0f172a;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aether-btn-cyan:hover {
+  background: #13294b;
+  color: #ffffff;
+  box-shadow: 4px 4px 0px #0f172a;
+  transform: translate(-1px, -1px);
 }
 
 @media print {
@@ -74,7 +163,6 @@ body {
     print-color-adjust: exact !important;
   }
 
-  /* Completely hide common non-printable layout elements */
   header,
   footer,
   nav,
@@ -85,12 +173,10 @@ body {
     display: none !important;
   }
 
-  /* Hide all elements on the page by default */
   body * {
     visibility: hidden;
   }
 
-  /* Make ONLY the printable legal paper sheet and its children visible */
   #hakku-legal-document-paper,
   #hakku-legal-document-paper *,
   #hakku-evidence-paper,
@@ -98,7 +184,6 @@ body {
     visibility: visible;
   }
 
-  /* Pin the printable document at the very top-left of the first printed page */
   #hakku-legal-document-paper,
   #hakku-evidence-paper {
     position: absolute !important;
@@ -127,45 +212,18 @@ body {
     transform: translateY(0px);
   }
   50% {
-    transform: translateY(-8px);
-  }
-}
-
-@keyframes hakki-wiggle {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(-3.5deg);
-  }
-  75% {
-    transform: rotate(3.5deg);
+    transform: translateY(-6px);
   }
 }
 
 @keyframes speech-pop {
   0% {
     opacity: 0;
-    transform: scale(0.92) translateY(6px);
+    transform: scale(0.95) translateY(4px);
   }
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes legal-stamp {
-  0% {
-    opacity: 0;
-    transform: scale(1.6) rotate(-18deg);
-  }
-  65% {
-    opacity: 1;
-    transform: scale(0.96) rotate(-3deg);
-  }
-  100% {
-    opacity: 0.95;
-    transform: scale(1) rotate(-3deg);
   }
 }
 
@@ -185,52 +243,52 @@ body {
     transform: translateY(0) scale(1, 1);
   }
   20% {
-    transform: translateY(3px) scale(1.08, 0.92);
+    transform: translateY(2px) scale(1.06, 0.94);
   }
   50% {
-    transform: translateY(-10px) scale(0.94, 1.08);
+    transform: translateY(-9px) scale(0.96, 1.05);
   }
   75% {
-    transform: translateY(1px) scale(1.02, 0.98);
+    transform: translateY(1px) scale(1.01, 0.99);
   }
   100% {
     transform: translateY(0) scale(1, 1);
   }
 }
 
-.animate-hakki-float {
-  animation: hakki-float 4s ease-in-out infinite;
-}
-
-.animate-hakki-wiggle {
-  animation: hakki-wiggle 1.5s ease-in-out infinite;
-}
-
-.animate-hakki-jump {
-  animation: hakki-jump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.animate-speech-pop {
-  animation: speech-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-legal-stamp {
-  animation: legal-stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.animate-slide-up-fade {
-  animation: slide-up-fade 0.35s ease-out forwards;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-hakki-float,
-  .animate-hakki-wiggle,
-  .animate-hakki-jump,
-  .animate-speech-pop,
-  .animate-legal-stamp,
-  .animate-slide-up-fade {
-    animation: none !important;
-    transform: none !important;
+@keyframes evidence-row-slide-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(-12px, 6px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
+.animate-hakki-float {
+  animation: hakki-float 3.5s ease-in-out infinite;
+}
+
+.animate-speech-pop {
+  animation: speech-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up-fade {
+  animation: slide-up-fade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-hakki-jump {
+  animation: hakki-jump 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-evidence-row-slide-in {
+  animation: evidence-row-slide-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-evidence-row-slide-in {
+    animation: none !important;
+  }
+}

@@ -9,11 +9,17 @@ export function getAIProvider(): AIProvider {
     return cachedProvider;
   }
 
-  const providerType = (process.env.LLM_PROVIDER || "mock").toLowerCase().trim();
-  const apiKey = process.env.LLM_API_KEY || "";
-  const modelName = process.env.LLM_MODEL_NAME || "gemini-2.0-flash";
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.LLM_API_KEY || "").trim();
+  const providerEnv = (process.env.LLM_PROVIDER || "").toLowerCase().trim();
+  const rawModelName = (process.env.LLM_MODEL_NAME || "").trim();
+  const modelName =
+    !rawModelName || rawModelName.startsWith("gemini-2.0") || rawModelName.startsWith("gemini-1.5")
+      ? "gemini-3.8-flash"
+      : rawModelName;
 
-  if (providerType === "gemini") {
+  if (providerEnv === "mock") {
+    cachedProvider = new MockAIProvider();
+  } else if (providerEnv === "gemini" || Boolean(apiKey)) {
     cachedProvider = new GeminiAIProvider(apiKey, modelName);
   } else {
     cachedProvider = new MockAIProvider();
@@ -22,9 +28,6 @@ export function getAIProvider(): AIProvider {
   return cachedProvider;
 }
 
-/**
- * Reset provider cache (khusus untuk testing/mocking)
- */
 export function resetAIProviderCache(): void {
   cachedProvider = null;
 }

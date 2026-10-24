@@ -23,7 +23,7 @@ export default function DokumenPage() {
             ]}
           />
           <span className="self-start sm:self-auto text-xs font-semibold text-brand-primary bg-brand-primary-light px-2.5 py-1 rounded-full">
-            Fitur Inovasi 1 • Instrumen Surat
+            Instrumen Surat Formil
           </span>
         </div>
 
@@ -46,10 +46,10 @@ export default function DokumenPage() {
           <div className="space-y-2 border-b border-brand-border pb-4">
             <h2 className="text-base sm:text-lg font-bold text-brand-text flex items-center gap-2">
               <Scale className="w-5 h-5 text-brand-primary" />
-              <span>Mengapa HAKKU Menyediakan Generator Surat Hukum Otomatis?</span>
+              <span>Landasan Formil Penyusunan Surat Hukum</span>
             </h2>
             <p className="text-xs sm:text-sm text-brand-muted leading-relaxed">
-              Di Indonesia, ribuan perselisihan perdata dan ketenagakerjaan gugur di meja mediasi atau pengadilan bukan karena pihak yang dirugikan salah, melainkan akibat <strong>cacat formil</strong> (formal procedural defect).
+              Dalam praktik penyelesaian sengketa perdata dan hubungan industrial, kelengkapan syarat formil menentukan apakah permohonan mediasi atau gugatan dapat diterima.
             </p>
           </div>
 

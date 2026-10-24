@@ -3,6 +3,8 @@ import { CaseFactSummary } from "../intake/types";
 import { CaseCategorySchema, UrgencyLevelSchema } from "../ai/types";
 import { ReferralOrganization } from "../referral/directory";
 
+export type CaseStatus = "active" | "awaiting_help" | "resolved" | "closed";
+
 export interface CaseRecord {
   id: string;
   caseCode: string;
@@ -11,7 +13,7 @@ export interface CaseRecord {
   category: string;
   categoryLabel: string;
   urgencyLevel: string;
-  status: "active" | "awaiting_help" | "resolved" | "closed";
+  status: CaseStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,7 +59,17 @@ export interface SavedCaseDetails {
   referrals: ReferralOrganization[];
 }
 
+export interface ListCasesFilter {
+  limit?: number;
+  status?: CaseStatus | "all";
+  category?: string;
+  search?: string;
+  userId?: string | null;
+}
+
 export const CreateCaseInputSchema = z.object({
+  title: z.string().min(3).max(160).optional(),
+  userId: z.string().optional().nullable(),
   factSummary: z.object({
     originalStory: z.string().min(10, "Cerita minimal 10 karakter"),
     category: CaseCategorySchema,
@@ -100,4 +112,8 @@ export type CreateCaseInput = z.infer<typeof CreateCaseInputSchema>;
 export const ToggleChecklistInputSchema = z.object({
   itemKey: z.string().min(1),
   isCompleted: z.boolean(),
+});
+
+export const UpdateCaseStatusSchema = z.object({
+  status: z.enum(["active", "awaiting_help", "resolved", "closed"]),
 });

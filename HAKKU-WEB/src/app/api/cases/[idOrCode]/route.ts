@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCaseRepository } from "@/modules/db/repository";
+import { UpdateCaseStatusSchema } from "@/modules/db/types";
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   context: { params: Promise<{ idOrCode: string }> }
 ) {
   try {
@@ -16,7 +17,6 @@ export async function GET(
     }
 
     const repository = getCaseRepository();
-    // Cari berdasarkan kode (HK-2026-...) atau ID UUID
     let caseData = await repository.getCaseByCode(idOrCode);
     if (!caseData) {
       caseData = await repository.getCaseById(idOrCode);
@@ -53,8 +53,52 @@ export async function GET(
   }
 }
 
-export async function DELETE(
+export async function PATCH(
   request: NextRequest,
+  context: { params: Promise<{ idOrCode: string }> }
+) {
+  try {
+    const { idOrCode } = await context.params;
+    if (!idOrCode || idOrCode.length > 80 || !/^[a-zA-Z0-9_-]+$/.test(idOrCode)) {
+      return NextResponse.json(
+        { success: false, error: "Parameter ID atau Kode Perkara tidak valid." },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json().catch(() => null);
+    const parsed = UpdateCaseStatusSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Status perkara tidak valid." },
+        { status: 400 }
+      );
+    }
+
+    const repository = getCaseRepository();
+    const updated = await repository.updateCaseStatus(idOrCode, parsed.data.status);
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, error: "Perkara tidak ditemukan." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: updated,
+    });
+  } catch (error: unknown) {
+    console.error("[HAKKU API] Error updating case status:", error);
+    return NextResponse.json(
+      { success: false, error: "Gagal memperbarui status perkara." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
   context: { params: Promise<{ idOrCode: string }> }
 ) {
   try {

@@ -79,14 +79,23 @@ describe("Document Generator: Legal Document Drafts", () => {
     assert.ok(lbhDoc.fullText.includes("Alasan penundaan dari pihak manajemen"));
   });
 
-  it("harus menyediakan setidaknya 3 template dokumen resmi dengan dasar hukum formil", () => {
-    assert.equal(AVAILABLE_DOCUMENT_TEMPLATES.length, 3);
+  it("harus menyediakan 5 template dokumen resmi dengan dasar hukum formil (termasuk Tripartit Disnaker & BPSK)", () => {
+    assert.equal(AVAILABLE_DOCUMENT_TEMPLATES.length, 5);
     AVAILABLE_DOCUMENT_TEMPLATES.forEach((tpl) => {
       assert.ok(tpl.id.length > 0);
       assert.ok(tpl.title.length > 0);
       assert.ok(tpl.legalBasis.length > 0);
       assert.ok(tpl.category.length > 0);
     });
+
+    const tripartite = generateLegalDocument(
+      "disnaker_tripartite",
+      sampleFactSummary,
+      sampleFields
+    );
+    assert.equal(tripartite.type, "disnaker_tripartite");
+    assert.ok(tripartite.structured.subject.includes("Tripartit"));
+    assert.ok(tripartite.structured.ccList.length > 0);
   });
 
   it("harus menghasilkan penamaan file PDF yang bersih dan tersanitasi untuk setiap template", () => {
