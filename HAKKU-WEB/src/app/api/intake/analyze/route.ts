@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { IntakeRequestSchema } from "@/modules/ai/types";
 import { getAIProvider } from "@/modules/ai/factory";
+import { enforceRateLimit } from "@/lib/rate-limiter";
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(
+    request,
+    { burstLimit: 10, hourlyLimit: 50 },
+    "intake-analyze"
+  );
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const rawBody = await request.json().catch(() => null);
 

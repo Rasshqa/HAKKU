@@ -51,7 +51,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`h-full ${sora.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-full flex flex-col bg-brand-bg text-brand-text antialiased selection:bg-[#00F0FF] selection:text-black">
+      <body className="min-h-full flex flex-col bg-brand-bg text-brand-text antialiased selection:bg-[#1B365D] selection:text-white">
         <Header />
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />

@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import {
   evaluateEvidenceReadiness,
   EVIDENCE_TYPE_LABELS,
 } from "@/modules/evidence/evaluator";
+import { enforceRateLimit } from "@/lib/rate-limiter";
 
 const EvidenceItemSchema = z.object({
   id: z.string(),
@@ -67,7 +68,16 @@ export async function GET() {
   });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(
+    request,
+    { burstLimit: 10, hourlyLimit: 50 },
+    "evidence-audit"
+  );
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const rawBody = await request.json();
     const parseResult = EvidenceAuditInputSchema.safeParse(rawBody);

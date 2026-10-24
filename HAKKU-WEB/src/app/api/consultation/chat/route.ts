@@ -5,7 +5,11 @@ import {
   ChatMessage,
   buildConsultationAssessment,
   SYSTEM_CONSULTATION_PROMPT,
+  MAX_CONSULTATION_TURNS,
+  MAX_USER_MESSAGE_LENGTH,
+  MAX_CONTEXT_MESSAGES,
 } from "@/modules/ai/consultation";
+import { enforceRateLimit } from "@/lib/rate-limiter";
 
 const ChatRequestSchema = z.object({
   messages: z
@@ -13,7 +17,10 @@ const ChatRequestSchema = z.object({
       z.object({
         id: z.string().optional(),
         role: z.enum(["user", "assistant", "system"]),
-        content: z.string().min(1, "Pesan tidak boleh kosong").max(5000, "Pesan maksimal 5.000 karakter"),
+        content: z
+          .string()
+          .min(1, "Pesan tidak boleh kosong")
+          .max(MAX_USER_MESSAGE_LENGTH, `Pesan maksimal ${MAX_USER_MESSAGE_LENGTH} karakter`),
         timestamp: z.string().optional(),
       })
     )
@@ -23,6 +30,16 @@ const ChatRequestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // 1. Rate Limiting: Max 10 req/min (burst) & 40 req/hour per client IP
+  const rateLimitResponse = enforceRateLimit(
+    request,
+    { burstLimit: 10, hourlyLimit: 40 },
+    "consultation-chat"
+  );
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const rawBody = await request.json().catch(() => null);
 
@@ -39,11 +56,38 @@ export async function POST(request: NextRequest) {
     }
 
     const { mode } = parseResult.data;
-    const messages = parseResult.data.messages.slice(-20) as ChatMessage[];
-    const userMessages = messages.filter((m) => m.role === "user").map((m) => m.content);
+    const allMessages = parseResult.data.messages as ChatMessage[];
+    const userMessages = allMessages.filter((m) => m.role === "user").map((m) => m.content);
+    const userTurns = userMessages.length;
     const lastUserMessage = userMessages[userMessages.length - 1] || "";
 
     const assessment = buildConsultationAssessment(userMessages, lastUserMessage);
+
+    // 2. Session Turn Limit: Check if user exceeded maximum turns per interview
+    const isLimitExceeded = userTurns > MAX_CONSULTATION_TURNS;
+    const isFinalTurn = userTurns === MAX_CONSULTATION_TURNS;
+    const remainingTurns = Math.max(0, MAX_CONSULTATION_TURNS - userTurns);
+
+    if (isLimitExceeded) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          reply:
+            "Sesi wawancara hukum untuk perkara ini telah mencapai batas maksimal (15 sesi tanya-jawab). Semua poin fakta penting dan analisis hukum Anda telah dipetakan di panel berkas perkara. Silakan gunakan tombol Simpan Perkara atau Cetak Draf Dokumen untuk melangkah ke tindakan nyata.",
+          assessment,
+          groundingSources: [],
+          turnInfo: {
+            currentTurn: userTurns,
+            maxTurns: MAX_CONSULTATION_TURNS,
+            remainingTurns: 0,
+            isLimitReached: true,
+          },
+        },
+      });
+    }
+
+    // Context sliding window: only send latest messages to Gemini SDK to drastically reduce token costs
+    const contextMessages = allMessages.slice(-MAX_CONTEXT_MESSAGES);
 
     const apiKey = (process.env.GEMINI_API_KEY || process.env.LLM_API_KEY || "").trim();
     const model = "gemini-3.8-flash";
@@ -62,16 +106,20 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        const contents = messages.map((m) => ({
+        const contents = contextMessages.map((m) => ({
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: m.content }],
         }));
+
+        const turnInstruction = isFinalTurn
+          ? "\nPERINGATAN SISTEM: Ini adalah giliran tanya-jawab terakhir dalam wawancara ini. Buat rangkuman akhir yang utuh dan pandu warga untuk mengambil langkah penyelesaian nyata (Bipartit/Somasi)."
+          : "";
 
         const systemWithMode = `${SYSTEM_CONSULTATION_PROMPT}\n\nMODE SAAT INI: ${
           mode === "interview"
             ? "WAWANCARA INTAKE HUKUM (Fokus menggali kronologi, pihak lawan, bukti, dan tuntutan secara runtut)"
             : "DISKUSI & PEMECAHAN MASALAH HUKUM (Fokus menjawab pertanyaan warga, membedah opsi strategi, dan mitigasi risiko)"
-        }\n\nRANAH HUKUM TERDETEKSI: ${assessment.categoryLabel} (${assessment.category})\nPASAL TERKAIT: ${assessment.articlesCited.map((a) => `${a.articleLabel} - ${a.topic}`).join("; ")}`;
+        }\n\nRANAH HUKUM TERDETEKSI: ${assessment.categoryLabel} (${assessment.category})\nPASAL TERKAIT: ${assessment.articlesCited.map((a) => `${a.articleLabel} - ${a.topic}`).join("; ")}${turnInstruction}`;
 
         const geminiRes = await ai.models.generateContent({
           model,
@@ -109,12 +157,22 @@ export async function POST(request: NextRequest) {
 
     aiReplyText = sanitizeResponse(aiReplyText);
 
+    if (isFinalTurn) {
+      aiReplyText += "\n\nCatatan Paralegal: Ini adalah giliran tanya-jawab terakhir dalam sesi wawancara ini. Duduk perkara dan bukti Anda telah tercatat. Silakan simpan berkas atau gunakan tombol di bawah untuk membuat draf dokumen resmi.";
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         reply: aiReplyText,
         assessment,
         groundingSources,
+        turnInfo: {
+          currentTurn: userTurns,
+          maxTurns: MAX_CONSULTATION_TURNS,
+          remainingTurns,
+          isLimitReached: isFinalTurn,
+        },
       },
     });
   } catch (error: unknown) {

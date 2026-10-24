@@ -25,6 +25,24 @@ export interface ConsultationAssessment {
 export interface ConsultationResponse {
   reply: string;
   assessment: ConsultationAssessment;
+  turnInfo?: {
+    currentTurn: number;
+    maxTurns: number;
+    remainingTurns: number;
+    isLimitReached: boolean;
+  };
+}
+
+/**
+ * Limitasi perlindungan biaya API & pencegahan penyalahgunaan wawancara AI
+ */
+export const MAX_CONSULTATION_TURNS = 15;
+export const TURN_WARNING_THRESHOLD = 12;
+export const MAX_USER_MESSAGE_LENGTH = 1500;
+export const MAX_CONTEXT_MESSAGES = 8;
+
+export function countUserTurns(messages: { role: string }[]): number {
+  return messages.filter((m) => m.role === "user").length;
 }
 
 export const SYSTEM_CONSULTATION_PROMPT = `Anda adalah "Hakki si Kancil", Asisten Paralegal & Sahabat Sadar Hukum Warga Indonesia di platform HAKKU.

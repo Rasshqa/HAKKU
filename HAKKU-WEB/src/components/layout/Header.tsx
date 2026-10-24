@@ -23,7 +23,7 @@ const PRIMARY_LINKS: NavLink[] = [
 
 function AetherLogoMark() {
   return (
-    <div className="relative w-9 h-9 rounded-xl border-2 border-black shadow-[2.5px_2.5px_0px_#000000] flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:-translate-y-0.5 bg-[#0094FF]">
+    <div className="relative w-9 h-9 rounded-xl border-2 border-black shadow-[2.5px_2.5px_0px_#000000] flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:-translate-y-0.5 bg-[#1B365D]">
       <img
         src="/HakkuIcon.png"
         alt="Logo HAKKU"
@@ -113,13 +113,22 @@ function HeaderInner() {
               <span>{user.name ? user.name.split(" ")[0] : "Ruang Akun"}</span>
             </Link>
           ) : (
-            <Link
-              href="/pendampingan"
-              className="aether-btn-primary inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap shrink-0"
-            >
-              <span>Mulai Pendampingan</span>
-              <ArrowUpRight className="w-3.5 h-3.5 text-white" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/auth/masuk"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 border-2 border-black rounded-lg transition-colors shadow-[2px_2px_0px_#000000] whitespace-nowrap shrink-0"
+              >
+                <User className="w-3.5 h-3.5 text-slate-600" />
+                <span>Masuk</span>
+              </Link>
+              <Link
+                href="/pendampingan"
+                className="aether-btn-primary inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap shrink-0"
+              >
+                <span>Mulai Pendampingan</span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-white" />
+              </Link>
+            </div>
           )}
         </div>
 

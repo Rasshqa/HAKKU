@@ -17,7 +17,13 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { HakkiDuoInteractive } from "@/components/mascot/HakkiDuoInteractive";
-import { ChatMessage, ConsultationAssessment } from "@/modules/ai/consultation";
+import {
+  ChatMessage,
+  ConsultationAssessment,
+  MAX_CONSULTATION_TURNS,
+  MAX_USER_MESSAGE_LENGTH,
+  TURN_WARNING_THRESHOLD,
+} from "@/modules/ai/consultation";
 import { triggerConfetti } from "@/lib/confetti";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 
@@ -54,6 +60,29 @@ export default function KonsultasiPage() {
   const [mobileTab, setMobileTab] = useState<"chat" | "dossier">("chat");
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
 
+  // Rate Limiting & Session Turn Limit States
+  const [turnInfo, setTurnInfo] = useState<{
+    currentTurn: number;
+    maxTurns: number;
+    remainingTurns: number;
+    isLimitReached: boolean;
+  }>({
+    currentTurn: 0,
+    maxTurns: MAX_CONSULTATION_TURNS,
+    remainingTurns: MAX_CONSULTATION_TURNS,
+    isLimitReached: false,
+  });
+  const [rateLimitCooldown, setRateLimitCooldown] = useState<number>(0);
+
+  // Active cooldown countdown timer
+  useEffect(() => {
+    if (rateLimitCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setRateLimitCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [rateLimitCooldown]);
+
   const messagesRef = useRef<ChatMessage[]>(INITIAL_MESSAGES);
   const isSendingRef = useRef(false);
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
@@ -79,10 +108,17 @@ export default function KonsultasiPage() {
     scrollToBottom(true);
   }, [messages, isLoading, scrollToBottom]);
 
+  const userTurns = messages.filter((m) => m.role === "user").length;
+  const isLimitReached = userTurns >= MAX_CONSULTATION_TURNS || turnInfo.isLimitReached;
+  const remainingTurns = Math.max(0, MAX_CONSULTATION_TURNS - userTurns);
+
   // Reliable, single-dispatch message handler (prevents duplicate responses)
   const handleSendMessage = useCallback(async (textToSend?: string) => {
-    const text = (textToSend !== undefined ? textToSend : inputText).trim();
-    if (!text || isSendingRef.current) return;
+    const rawText = (textToSend !== undefined ? textToSend : inputText).trim();
+    if (!rawText || isSendingRef.current || isLimitReached || rateLimitCooldown > 0) return;
+
+    // Enforce character limit per message
+    const text = rawText.slice(0, MAX_USER_MESSAGE_LENGTH);
 
     // Set locks & state immediately
     isSendingRef.current = true;
@@ -110,9 +146,31 @@ export default function KonsultasiPage() {
         }),
       });
 
+      // Handle HTTP 429 Rate Limiting
+      if (response.status === 429) {
+        const json = await response.json().catch(() => null);
+        const retrySec = json?.rateLimit?.retryAfterSec || 30;
+        setRateLimitCooldown(retrySec);
+
+        const rateLimitMsg: ChatMessage = {
+          id: `assistant-ratelimit-${Date.now()}`,
+          role: "assistant",
+          content:
+            json?.error ||
+            `Anda mengirim pesan terlalu cepat. Silakan tunggu ${retrySec} detik sebelum mengirim pesan berikutnya demi menjaga stabilitas layanan.`,
+          timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        };
+        setMessages((current) => [...current, rateLimitMsg]);
+        return;
+      }
+
       if (response.ok) {
         const json = await response.json();
         if (json.success && json.data) {
+          if (json.data.turnInfo) {
+            setTurnInfo(json.data.turnInfo);
+          }
+
           const assistantMsg: ChatMessage = {
             id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             role: "assistant",
@@ -148,7 +206,7 @@ export default function KonsultasiPage() {
       setIsLoading(false);
       isSendingRef.current = false;
     }
-  }, [inputText, mode]);
+  }, [inputText, mode, isLimitReached, rateLimitCooldown]);
 
   // Initial story ingestion from sessionStorage (runs once on mount)
   const hasIngestedRef = useRef(false);
@@ -269,6 +327,13 @@ export default function KonsultasiPage() {
     setInputText("");
     setIsLoading(false);
     isSendingRef.current = false;
+    setTurnInfo({
+      currentTurn: 0,
+      maxTurns: MAX_CONSULTATION_TURNS,
+      remainingTurns: MAX_CONSULTATION_TURNS,
+      isLimitReached: false,
+    });
+    setRateLimitCooldown(0);
   };
 
   return (
@@ -302,6 +367,31 @@ export default function KonsultasiPage() {
             </div>
 
             <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2">
+              {/* Session Turn Limit Indicator */}
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-brand-border text-xs font-semibold text-brand-text shadow-2xs"
+                title={`Sesi tanya-jawab: ${userTurns} dari ${MAX_CONSULTATION_TURNS}`}
+              >
+                <Clock className="w-3.5 h-3.5 text-brand-primary shrink-0" />
+                <span className="tabular-nums">
+                  Sesi: {userTurns}/{MAX_CONSULTATION_TURNS}
+                </span>
+                <div className="w-10 sm:w-14 h-1.5 bg-gray-200 rounded-full overflow-hidden ml-0.5">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      isLimitReached
+                        ? "bg-emerald-600"
+                        : userTurns >= TURN_WARNING_THRESHOLD
+                        ? "bg-amber-500"
+                        : "bg-brand-primary"
+                    }`}
+                    style={{
+                      width: `${Math.min(100, (userTurns / MAX_CONSULTATION_TURNS) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
               {/* Mode Toggle Switcher */}
               <div className="inline-flex rounded-lg border border-brand-border p-0.5 bg-gray-50 text-xs font-semibold">
                 <button
@@ -445,68 +535,156 @@ export default function KonsultasiPage() {
             )}
           </div>
 
-          {/* Tactical Quick Action Chips */}
-          {!isLoading && (
-            <div className="px-4 py-2 border-t border-brand-border bg-gray-50/80 overflow-x-auto flex items-center gap-2 scrollbar-none">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted shrink-0 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-500" />
-                Tanya Taktis:
+          {/* Cooldown Alert Banner */}
+          {rateLimitCooldown > 0 && (
+            <div className="px-4 py-2.5 bg-red-50 border-t border-red-200 text-red-800 text-xs flex items-center justify-between">
+              <span className="flex items-center gap-1.5 font-medium">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                Batas pengiriman tercapai. Silakan tunggu jeda {rateLimitCooldown} detik demi kestabilan layanan.
               </span>
-              {(assessment?.quickPrompts && assessment.quickPrompts.length > 0
-                ? assessment.quickPrompts
-                : DEFAULT_TACTICAL_CHIPS
-              ).map((prompt, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSendMessage(prompt)}
-                  className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white hover:bg-blue-50 border border-brand-border hover:border-brand-primary text-brand-text hover:text-brand-primary transition-all whitespace-nowrap shrink-0 shadow-2xs min-h-[32px]"
-                >
-                  {prompt}
-                </button>
-              ))}
+              <span className="font-mono font-bold text-red-700 tabular-nums shrink-0">
+                {rateLimitCooldown}s
+              </span>
             </div>
           )}
 
-          {/* Chat Input Bar */}
-          <div className="p-3 sm:p-4 border-t border-brand-border bg-white">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="flex items-end gap-2"
-            >
-              <div className="flex-1 relative">
-                <textarea
-                  rows={2}
-                  value={inputText}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    mode === "interview"
-                      ? "Jawab pertanyaan Hakki atau jelaskan kronologi lanjutan..."
-                      : "Tanyakan apa saja seputar hak hukum dan strategi Anda..."
-                  }
-                  /* text-base on mobile prevents iOS Safari from automatically zooming into the input */
-                  className="w-full px-3.5 py-2.5 text-base sm:text-sm text-brand-text bg-gray-50 border border-brand-border rounded-xl focus:bg-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-colors resize-none placeholder:text-gray-400"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={!inputText.trim() || isLoading}
-                className="inline-flex items-center justify-center p-3 rounded-xl text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-40 transition-colors shadow-xs shrink-0 min-w-[44px] min-h-[44px]"
-                aria-label="Kirim Pesan"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-            <div className="flex items-center justify-between mt-2 text-[10px] text-brand-muted">
-              <span>Tekan Enter untuk kirim, Shift + Enter baris baru</span>
-              <span>Kerahasiaan dilindungi UU PDP</span>
+          {/* Session Limit Approaching Warning */}
+          {userTurns >= TURN_WARNING_THRESHOLD && !isLimitReached && rateLimitCooldown === 0 && (
+            <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-amber-900 text-xs flex items-center justify-between">
+              <span className="flex items-center gap-1.5 font-medium">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                Tersisa <strong>{remainingTurns} sesi wawancara</strong>. Rangkum inti permasalahan Anda agar berkas siap disusun.
+              </span>
+              <span className="text-[11px] font-bold text-amber-700 tabular-nums shrink-0">
+                {userTurns}/{MAX_CONSULTATION_TURNS}
+              </span>
             </div>
-          </div>
+          )}
+
+          {/* Session Conclusion Panel (When 15 turns reached) */}
+          {isLimitReached ? (
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-slate-50 border-t-2 border-brand-primary space-y-3">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Wawancara Hukum Selesai ({userTurns}/{MAX_CONSULTATION_TURNS} Sesi)
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                    Poin-poin fakta, undang-undang sah, dan inventarisasi bukti Anda telah lengkap tersusun di panel samping. Silakan simpan berkas perkara atau buat draf dokumen hukum (Somasi / Bipartit) untuk ditindaklanjuti.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSaveToCase}
+                  disabled={isSaved}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 shadow-xs flex items-center gap-1.5 transition-all min-h-[38px]"
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  {isSaved ? "Berkas Tersimpan" : "Simpan Berkas Kasus"}
+                </button>
+                <Link
+                  href="/dokumen"
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-brand-primary text-white hover:bg-brand-primary-hover shadow-xs flex items-center gap-1.5 transition-all min-h-[38px]"
+                >
+                  <FileText className="w-4 h-4" />
+                  Buat Draf Surat Hukum
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirmModal(true)}
+                  className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-white border border-brand-border text-slate-700 hover:bg-slate-50 shadow-2xs flex items-center gap-1.5 transition-all min-h-[38px]"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Mulai Kasus Baru
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Tactical Quick Action Chips */}
+              {!isLoading && rateLimitCooldown === 0 && (
+                <div className="px-4 py-2 border-t border-brand-border bg-gray-50/80 overflow-x-auto flex items-center gap-2 scrollbar-none">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-muted shrink-0 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-500" />
+                    Tanya Taktis:
+                  </span>
+                  {(assessment?.quickPrompts && assessment.quickPrompts.length > 0
+                    ? assessment.quickPrompts
+                    : DEFAULT_TACTICAL_CHIPS
+                  ).map((prompt, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendMessage(prompt)}
+                      className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white hover:bg-blue-50 border border-brand-border hover:border-brand-primary text-brand-text hover:text-brand-primary transition-all whitespace-nowrap shrink-0 shadow-2xs min-h-[32px]"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Chat Input Bar */}
+              <div className="p-3 sm:p-4 border-t border-brand-border bg-white">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }}
+                  className="flex items-end gap-2"
+                >
+                  <div className="flex-1 relative">
+                    <textarea
+                      rows={2}
+                      value={inputText}
+                      onChange={handleInputChange}
+                      onKeyDown={handleKeyDown}
+                      maxLength={MAX_USER_MESSAGE_LENGTH}
+                      disabled={isLoading || rateLimitCooldown > 0}
+                      placeholder={
+                        rateLimitCooldown > 0
+                          ? `Mohon tunggu ${rateLimitCooldown}s sebelum pesan berikutnya...`
+                          : mode === "interview"
+                          ? "Jawab pertanyaan Hakki atau jelaskan kronologi lanjutan..."
+                          : "Tanyakan apa saja seputar hak hukum dan strategi Anda..."
+                      }
+                      /* text-base on mobile prevents iOS Safari from automatically zooming into the input */
+                      className="w-full px-3.5 py-2.5 text-base sm:text-sm text-brand-text bg-gray-50 border border-brand-border rounded-xl focus:bg-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-colors resize-none placeholder:text-gray-400 disabled:opacity-60"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={!inputText.trim() || isLoading || rateLimitCooldown > 0}
+                    className="inline-flex items-center justify-center p-3 rounded-xl text-white bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-40 transition-colors shadow-xs shrink-0 min-w-[44px] min-h-[44px]"
+                    aria-label="Kirim Pesan"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
+                <div className="flex items-center justify-between mt-2 text-[10px] text-brand-muted">
+                  <span>Tekan Enter untuk kirim, Shift + Enter baris baru</span>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={
+                        inputText.length >= MAX_USER_MESSAGE_LENGTH
+                          ? "text-red-600 font-bold"
+                          : inputText.length >= MAX_USER_MESSAGE_LENGTH - 100
+                          ? "text-amber-600 font-semibold"
+                          : "text-brand-muted"
+                      }
+                    >
+                      {inputText.length}/{MAX_USER_MESSAGE_LENGTH}
+                    </span>
+                    <span className="hidden sm:inline">Kerahasiaan dilindungi UU PDP</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right Column: Live Legal Assessment Dossier (5 Cols on desktop, tab-controlled on mobile) */}

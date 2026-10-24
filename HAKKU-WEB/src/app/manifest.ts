@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "Platform pendamping hukum digital untuk masyarakat Indonesia. Ceritakan masalah dengan bahasa sehari-hari, dapatkan klarifikasi terstruktur, ringkasan fakta, informasi hukum berbasis sumber, dan checklist persiapan.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0B111E",
-    theme_color: "#00F0FF",
+    background_color: "#F8F9FA",
+    theme_color: "#1B365D",
     icons: [
       {
         src: "/HakkuIcon.png",

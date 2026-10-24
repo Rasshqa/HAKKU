@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sessionUser = getServerSessionUser(request);
+    const sessionUser = await getServerSessionUser(request);
     const bodyWithUser = {
       ...rawBody,
       userId: rawBody.userId ?? sessionUser?.id ?? null,

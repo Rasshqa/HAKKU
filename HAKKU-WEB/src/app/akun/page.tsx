@@ -95,27 +95,25 @@ export default function AccountPage() {
           </div>
 
           <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-[10px] font-bold text-brand-primary border border-blue-200">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Neon Auth • Google Identity</span>
+            </div>
             <h2 className="text-xl font-bold text-brand-text">
               Belum Masuk ke Akun
             </h2>
             <p className="text-xs text-brand-muted leading-relaxed">
-              Masuk atau buat akun baru untuk menyimpan dokumen somasi, bukti kasus, dan berkonsultasi langsung dengan Hakki.
+              Masuk dengan akun Google untuk menyimpan arsip perkara, berkonsultasi langsung dengan Hakki, dan mengunduh draf somasi resmi.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <div className="pt-2">
             <Link
               href="/auth/masuk?callbackUrl=/akun"
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary hover:bg-brand-primary-hover rounded-lg transition-colors min-touch-target shadow-xs"
+              className="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3 text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 border-2 border-black rounded-xl transition-all shadow-[3px_3px_0px_#000000] hover:shadow-[1.5px_1.5px_0px_#000000] cursor-pointer"
             >
-              <span>Masuk Akun</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/auth/daftar"
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-brand-text bg-gray-50 hover:bg-gray-100 border border-brand-border rounded-lg transition-colors min-touch-target"
-            >
-              <span>Daftar Gratis</span>
+              <span>Masuk dengan Akun Google</span>
+              <ArrowRight className="w-4 h-4 text-slate-400" />
             </Link>
           </div>
         </div>
