@@ -28,9 +28,9 @@ export function Footer() {
           <div className="sm:col-span-2 md:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
               <img
-                src="/hakki-icon.svg"
-                alt="Ikon Hakki HAKKU"
-                className="w-8 h-8 rounded-lg border border-white/20 shrink-0"
+                src="/HakkuIcon.png"
+                alt="Ikon HAKKU"
+                className="w-8 h-8 rounded-lg border border-white/20 shrink-0 object-cover"
               />
               <span className="font-extrabold text-lg tracking-tight text-white">HAKKU</span>
             </div>

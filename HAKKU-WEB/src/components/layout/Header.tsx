@@ -23,83 +23,12 @@ const PRIMARY_LINKS: NavLink[] = [
 
 function AetherLogoMark() {
   return (
-    <div className="relative w-9 h-9 rounded-xl bg-[#1B365D] border-2 border-black shadow-[2.5px_2.5px_0px_#000000] flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:-translate-y-0.5">
-      <svg viewBox="0 0 64 64" className="w-8 h-8" aria-hidden="true">
-        <circle cx="32" cy="34" r="22" fill="#234575" opacity="0.55" />
-        {/* Left & Right Kancil Ears */}
-        <path
-          d="M22 24 C 13 13, 10 5, 16 4 C 21 3, 26 12, 26 21 Z"
-          fill="#D97724"
-          stroke="#000000"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-        />
-        <path d="M21 21 C 16 13, 14 8, 17 7 C 19 6, 23 13, 24 19 Z" fill="#FDBA74" />
-        <path
-          d="M42 24 C 51 13, 54 5, 48 4 C 43 3, 38 12, 38 21 Z"
-          fill="#D97724"
-          stroke="#000000"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-        />
-        <path d="M43 21 C 48 13, 50 8, 47 7 C 45 6, 41 13, 40 19 Z" fill="#FDBA74" />
-        {/* Crown Fur Tuft */}
-        <path
-          d="M28 17 Q 32 10 35 16 Q 38 12 36 18 Z"
-          fill="#F59E0B"
-          stroke="#000000"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        {/* Sculpted Kancil Head */}
-        <path
-          d="M16 32 C 16 20, 48 20, 48 32 C 50 41, 41 49, 32 50 C 23 49, 14 41, 16 32 Z"
-          fill="#E07A22"
-          stroke="#000000"
-          strokeWidth="2.8"
-          strokeLinejoin="round"
-        />
-        {/* Cream Muzzle */}
-        <path
-          d="M24 38 C 24 29, 40 29, 40 38 C 40 46, 36 49, 32 49 C 28 49, 24 46, 24 38 Z"
-          fill="#FFFBEB"
-        />
-        {/* Cyber Visor Rim */}
-        <rect
-          x="17"
-          y="27"
-          width="30"
-          height="10"
-          rx="5"
-          fill="#00F0FF"
-          fillOpacity="0.22"
-          stroke="#00F0FF"
-          strokeWidth="1.8"
-        />
-        {/* Eyes */}
-        <ellipse cx="24.5" cy="32.5" rx="3.4" ry="3.8" fill="#0F172A" />
-        <circle cx="23.4" cy="31.2" r="1.3" fill="#FFFFFF" />
-        <ellipse cx="39.5" cy="32.5" rx="3.4" ry="3.8" fill="#0F172A" />
-        <circle cx="38.4" cy="31.2" r="1.3" fill="#FFFFFF" />
-        {/* Nose & Smile */}
-        <polygon points="29,39 35,39 32,42.5" fill="#0F172A" />
-        <path
-          d="M28.5 44.5 Q 32 46.8 35.5 44.5"
-          stroke="#0F172A"
-          strokeWidth="2"
-          strokeLinecap="round"
-          fill="none"
-        />
-        {/* Paralegal Collar & Gold Pin */}
-        <path
-          d="M21 49 L 32 55 L 43 49 L 46 58 L 18 58 Z"
-          fill="#0F172A"
-          stroke="#000000"
-          strokeWidth="2.2"
-          strokeLinejoin="round"
-        />
-        <circle cx="32" cy="54" r="2.6" fill="#FBBF24" stroke="#000000" strokeWidth="1.2" />
-      </svg>
+    <div className="relative w-9 h-9 rounded-xl border-2 border-black shadow-[2.5px_2.5px_0px_#000000] flex items-center justify-center shrink-0 overflow-hidden transition-transform group-hover:-translate-y-0.5 bg-[#0094FF]">
+      <img
+        src="/HakkuIcon.png"
+        alt="Logo HAKKU"
+        className="w-full h-full object-cover"
+      />
     </div>
   );
 }

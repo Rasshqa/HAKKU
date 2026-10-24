@@ -28,9 +28,12 @@ export const metadata: Metadata = {
       "Platform pendamping hukum digital untuk masyarakat Indonesia. Ceritakan masalah dengan bahasa sehari-hari, dapatkan klarifikasi terstruktur, ringkasan fakta, informasi hukum berbasis sumber, dan checklist persiapan.",
   },
   icons: {
-    icon: "/hakki-icon.svg",
-    shortcut: "/hakki-icon.svg",
-    apple: "/hakki-icon.svg",
+    icon: [
+      { url: "/HakkuIcon.png" },
+      { url: "/icon.png" },
+    ],
+    shortcut: "/HakkuIcon.png",
+    apple: "/HakkuIcon.png",
   },
   keywords: [
     "HAKKU",
