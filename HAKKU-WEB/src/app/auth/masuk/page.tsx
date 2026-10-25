@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Scale,
@@ -8,6 +9,8 @@ import {
   AlertCircle,
   ArrowRight,
   Sparkles,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 import { signInWithGoogle } from "@/lib/auth/client";
 import { HakkiDuoInteractive } from "@/components/mascot/HakkiDuoInteractive";
@@ -45,11 +48,15 @@ function SignInContent() {
 
   React.useEffect(() => {
     if (urlError) {
-      setErrorMessage(
-        urlError === "access_denied"
-          ? "Akses login Google dibatalkan atau ditolak."
-          : `Gagal autentikasi: ${decodeURIComponent(urlError)}`
-      );
+      if (urlError === "account_not_linked") {
+        setErrorMessage(
+          "Akun Anda terdeteksi belum tertaut ke metode ini. Data akun lama telah dibersihkan, silakan klik 'Masuk dengan Google' kembali untuk menghubungkan akun."
+        );
+      } else if (urlError === "access_denied") {
+        setErrorMessage("Akses otorisasi akun Google dibatalkan atau tidak disetujui.");
+      } else {
+        setErrorMessage(`Gagal autentikasi: ${decodeURIComponent(urlError)}`);
+      }
     }
   }, [urlError]);
 
@@ -79,7 +86,7 @@ function SignInContent() {
 
   return (
     <div className="flex-1 min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 bg-brand-bg">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-5">
         {/* Mascot & Header */}
         <div className="flex flex-col items-center text-center space-y-3">
           <HakkiDuoInteractive
@@ -96,9 +103,24 @@ function SignInContent() {
               Masuk ke HAKKU
             </h1>
             <p className="text-xs text-brand-muted mt-1.5 max-w-sm leading-relaxed">
-              Platform pendamping hukum warga Indonesia. Masuk praktis dengan akun Google untuk mengakses riwayat perkara dan draf dokumen hukum Anda.
+              Selamat datang kembali. Masuk praktis dengan akun Google untuk melanjutkan penanganan perkara dan berkonsultasi dengan asisten hukum AI.
             </p>
           </div>
+        </div>
+
+        {/* Auth Mode Toggle Tabs (Masuk vs Daftar) */}
+        <div className="grid grid-cols-2 p-1 bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_#000000]">
+          <div className="py-2 text-center text-xs font-bold text-white bg-[#1B365D] rounded-lg shadow-xs flex items-center justify-center gap-1.5">
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Masuk ke Akun</span>
+          </div>
+          <Link
+            href={`/auth/daftar${callbackUrl !== "/akun" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+            className="py-2 text-center text-xs font-bold text-slate-600 hover:text-black hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-slate-400" />
+            <span>Daftar Akun Baru</span>
+          </Link>
         </div>
 
         {/* Card Form */}
@@ -152,15 +174,21 @@ function SignInContent() {
               ) : (
                 <>
                   <GoogleIcon />
-                  <span>Lanjutkan dengan Google</span>
+                  <span>Masuk dengan Google</span>
                   <ArrowRight className="w-4 h-4 text-slate-400 ml-auto" />
                 </>
               )}
             </button>
 
-            <p className="text-[11px] text-center text-slate-500 leading-relaxed">
-              Autentikasi resmi dan aman dengan akun Google. Pendaftaran akun baru berlangsung otomatis saat pertama kali masuk.
-            </p>
+            <div className="pt-2 text-center text-xs text-slate-600">
+              <span>Belum memiliki akun HAKKU? </span>
+              <Link
+                href={`/auth/daftar${callbackUrl !== "/akun" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+                className="font-bold text-[#1B365D] hover:underline"
+              >
+                Daftar Akun Baru
+              </Link>
+            </div>
           </div>
 
           {/* Domain Verification Badge */}

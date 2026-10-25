@@ -124,10 +124,16 @@ function HeaderInner() {
             <div className="flex items-center gap-2">
               <Link
                 href="/auth/masuk"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 hover:text-black transition-colors whitespace-nowrap shrink-0"
+              >
+                <span>Masuk</span>
+              </Link>
+              <Link
+                href="/auth/daftar"
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 border-2 border-black rounded-lg transition-colors shadow-[2px_2px_0px_#000000] whitespace-nowrap shrink-0"
               >
                 <User className="w-3.5 h-3.5 text-slate-600" />
-                <span>Masuk</span>
+                <span>Daftar Akun</span>
               </Link>
               <Link
                 href="/pendampingan"
@@ -202,20 +208,32 @@ function HeaderInner() {
           </div>
 
           <div className="pt-3 border-t border-brand-border flex items-center gap-2">
-            <Link
-              href={user ? "/akun" : "/auth/masuk"}
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex-1 text-center px-4 py-2.5 text-xs font-bold text-black bg-[#F8F9FA] border-2 border-black rounded-lg"
-            >
-              {user ? `Akun (${user.name?.split(" ")[0] || "Warga"})` : "Masuk / Daftar"}
-            </Link>
-            <Link
-              href="/pendampingan"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex-1 text-center px-4 py-2.5 text-xs font-bold text-white bg-[#1B365D] border-2 border-black rounded-lg"
-            >
-              Mulai Pendampingan
-            </Link>
+            {user ? (
+              <Link
+                href="/akun"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex-1 text-center px-4 py-2.5 text-xs font-bold text-black bg-[#F8F9FA] border-2 border-black rounded-lg"
+              >
+                Akun ({user.name?.split(" ")[0] || "Warga"})
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/auth/masuk"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex-1 text-center px-3 py-2.5 text-xs font-bold text-slate-800 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0px_#000000]"
+                >
+                  Masuk
+                </Link>
+                <Link
+                  href="/auth/daftar"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex-1 text-center px-3 py-2.5 text-xs font-bold text-white bg-[#1B365D] border-2 border-black rounded-lg shadow-[2px_2px_0px_#000000]"
+                >
+                  Daftar Baru
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
