@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { StepProgress, StepItem } from "@/components/flow/StepProgress";
 import { SafetyAlertBanner } from "@/components/flow/SafetyAlertBanner";
 import { PrivacyConsentStep } from "@/components/flow/PrivacyConsentStep";
@@ -35,6 +36,7 @@ const FLOW_STEPS: StepItem[] = [
 ];
 
 export default function PendampinganPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [story, setStory] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
@@ -77,6 +79,14 @@ export default function PendampinganPage() {
         },
         body: JSON.stringify({ story: submittedStory }),
       });
+
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("hakku_initial_story", submittedStory);
+        }
+        router.push("/auth/masuk?callbackUrl=/pendampingan");
+        return;
+      }
 
       let resData: IntakeAnalysisResult | null = null;
       if (response.ok) {

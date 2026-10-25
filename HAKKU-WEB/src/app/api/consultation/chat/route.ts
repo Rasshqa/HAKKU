@@ -10,6 +10,7 @@ import {
   MAX_CONTEXT_MESSAGES,
 } from "@/modules/ai/consultation";
 import { enforceRateLimit } from "@/lib/rate-limiter";
+import { getServerSessionUser } from "@/lib/auth/server";
 
 const ChatRequestSchema = z.object({
   messages: z
@@ -30,7 +31,21 @@ const ChatRequestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  // 1. Rate Limiting: Max 10 req/min (burst) & 40 req/hour per client IP
+  // 1. Cek autentikasi pengguna: Fitur berbasis AI wajib login
+  const user = await getServerSessionUser(request);
+  if (!user && process.env.NODE_ENV !== "test") {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Akses ditolak. Fitur Wawancara AI hanya dapat digunakan setelah masuk dengan akun Google.",
+        requiresAuth: true,
+      },
+      { status: 401 }
+    );
+  }
+
+  // 2. Rate Limiting: Max 10 req/min (burst) & 40 req/hour per client IP
   const rateLimitResponse = enforceRateLimit(
     request,
     { burstLimit: 10, hourlyLimit: 40 },

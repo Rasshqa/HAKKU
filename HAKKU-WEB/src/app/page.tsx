@@ -11,7 +11,6 @@ import {
   Calculator,
   MessageSquare,
   AlertTriangle,
-  Building2,
 } from "lucide-react";
 import { HakkiDuoInteractive } from "@/components/mascot/HakkiDuoInteractive";
 

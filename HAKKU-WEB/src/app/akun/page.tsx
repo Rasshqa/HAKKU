@@ -65,6 +65,9 @@ export default function AccountPage() {
     setIsLoggingOut(true);
     try {
       await authClient.signOut();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("hakku-auth-change"));
+      }
       setSession(null);
       router.push("/");
     } catch (err) {

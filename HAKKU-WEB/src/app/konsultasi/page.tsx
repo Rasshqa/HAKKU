@@ -146,6 +146,22 @@ export default function KonsultasiPage() {
         }),
       });
 
+      // Handle HTTP 401 Unauthorized (Fitur AI Memerlukan Login)
+      if (response.status === 401) {
+        const json = await response.json().catch(() => null);
+        const authMsg: ChatMessage = {
+          id: `assistant-auth-${Date.now()}`,
+          role: "assistant",
+          content: `${
+            json?.error ||
+            "Akses ditolak. Fitur Wawancara AI hanya dapat digunakan oleh pengguna yang telah masuk dengan akun Google."
+          } Silakan masuk ke akun HAKKU untuk melanjutkan sesi ini.`,
+          timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        };
+        setMessages((current) => [...current, authMsg]);
+        return;
+      }
+
       // Handle HTTP 429 Rate Limiting
       if (response.status === 429) {
         const json = await response.json().catch(() => null);

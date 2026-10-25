@@ -2,8 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { IntakeRequestSchema } from "@/modules/ai/types";
 import { getAIProvider } from "@/modules/ai/factory";
 import { enforceRateLimit } from "@/lib/rate-limiter";
+import { getServerSessionUser } from "@/lib/auth/server";
 
 export async function POST(request: NextRequest) {
+  // 1. Cek autentikasi pengguna: Analisis kasus berbasis AI wajib login
+  const user = await getServerSessionUser(request);
+  if (!user && process.env.NODE_ENV !== "test") {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Akses ditolak. Analisis kronologi hukum berbasis AI memerlukan autentikasi akun Google.",
+        requiresAuth: true,
+      },
+      { status: 401 }
+    );
+  }
+
+  // 2. Rate Limiting
   const rateLimitResponse = enforceRateLimit(
     request,
     { burstLimit: 10, hourlyLimit: 50 },

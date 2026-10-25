@@ -47,7 +47,14 @@ function SignInContent() {
     setIsLoading(true);
 
     try {
-      await signInWithGoogle(callbackUrl);
+      const result = await signInWithGoogle(callbackUrl);
+      if (result && "error" in result && result.error) {
+        setErrorMessage(
+          (result.error as { message?: string })?.message ||
+            "Gagal menginisialisasi login Google melalui Neon Auth."
+        );
+        setIsLoading(false);
+      }
     } catch (err: unknown) {
       console.error("[HAKKU AUTH] Error during Google OAuth:", err);
       setErrorMessage(
@@ -89,6 +96,19 @@ function SignInContent() {
             <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
               <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* AI Feature Access Notice */}
+          {(callbackUrl.includes("konsultasi") || callbackUrl.includes("pendampingan")) && (
+            <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#1B365D] flex items-start gap-2.5 animate-slide-up-fade">
+              <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-[#1B365D]" />
+              <div className="space-y-0.5">
+                <span className="font-bold block">Autentikasi Diperlukan untuk Fitur Berbasis AI</span>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Fitur Wawancara Hukum dan Pendampingan Terpandu menggunakan mesin AI cerdas untuk membedah kronologi kasus. Silakan masuk dengan akun Google untuk memulai dan mengamankan riwayat analisis Anda.
+                </p>
+              </div>
             </div>
           )}
 

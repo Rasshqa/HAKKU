@@ -6,6 +6,7 @@ import {
   EVIDENCE_TYPE_LABELS,
 } from "@/modules/evidence/evaluator";
 import { enforceRateLimit } from "@/lib/rate-limiter";
+import { getServerSessionUser } from "@/lib/auth/server";
 
 const EvidenceItemSchema = z.object({
   id: z.string(),
@@ -98,6 +99,19 @@ export async function POST(request: NextRequest) {
     const groundingSources: GroundingSourceItem[] = [];
 
     if (parseResult.data.includeSearchGrounding) {
+      const user = await getServerSessionUser(request);
+      if (!user && process.env.NODE_ENV !== "test") {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Fitur AI Search Grounding memerlukan login. Silakan masuk dengan akun Google terlebih dahulu.",
+            requiresAuth: true,
+          },
+          { status: 401 }
+        );
+      }
+
       const apiKey = (process.env.GEMINI_API_KEY || process.env.LLM_API_KEY || "").trim();
       if (apiKey && apiKey !== "your_api_key_here") {
         try {

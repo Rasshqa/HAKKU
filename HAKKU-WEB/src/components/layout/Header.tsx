@@ -9,11 +9,12 @@ import { authClient } from "@/lib/auth/client";
 interface NavLink {
   href: string;
   label: string;
+  isAi?: boolean;
 }
 
 const PRIMARY_LINKS: NavLink[] = [
-  { href: "/pendampingan", label: "Pendampingan" },
-  { href: "/konsultasi", label: "Wawancara" },
+  { href: "/pendampingan", label: "Pendampingan", isAi: true },
+  { href: "/konsultasi", label: "Wawancara", isAi: true },
   { href: "/kontrak", label: "Cek Kontrak" },
   { href: "/kalkulator", label: "Kalkulator PHK" },
   { href: "/dokumen", label: "Draf Surat" },
@@ -96,7 +97,14 @@ function HeaderInner() {
                     : "text-brand-muted hover:text-black"
                 }`}
               >
-                {link.label}
+                <span className="flex items-center gap-1.5">
+                  <span>{link.label}</span>
+                  {link.isAi && (
+                    <span className="text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-blue-100 text-[#1B365D] border border-blue-200 uppercase tracking-wider">
+                      AI
+                    </span>
+                  )}
+                </span>
               </Link>
             );
           })}
@@ -173,7 +181,14 @@ function HeaderInner() {
                       : "text-black hover:bg-[#F8F9FA]"
                   }`}
                 >
-                  {link.label}
+                  <span className="flex items-center justify-between">
+                    <span>{link.label}</span>
+                    {link.isAi && (
+                      <span className="text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-blue-100 text-[#1B365D] border border-blue-200 uppercase tracking-wider">
+                        AI
+                      </span>
+                    )}
+                  </span>
                 </Link>
               );
             })}
