@@ -22,7 +22,6 @@ import {
   DocumentCustomFields,
   GeneratedLegalDocument,
   LegalDocumentType,
-  LetterHeaderMode,
 } from "@/modules/document/types";
 import {
   AVAILABLE_DOCUMENT_TEMPLATES,

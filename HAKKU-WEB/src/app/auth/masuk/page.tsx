@@ -38,9 +38,20 @@ function GoogleIcon() {
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/akun";
+  const urlError = searchParams.get("error_description") || searchParams.get("error");
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  React.useEffect(() => {
+    if (urlError) {
+      setErrorMessage(
+        urlError === "access_denied"
+          ? "Akses login Google dibatalkan atau ditolak."
+          : `Gagal autentikasi: ${decodeURIComponent(urlError)}`
+      );
+    }
+  }, [urlError]);
 
   const handleGoogleSignIn = async () => {
     setErrorMessage("");
@@ -51,7 +62,7 @@ function SignInContent() {
       if (result && "error" in result && result.error) {
         setErrorMessage(
           (result.error as { message?: string })?.message ||
-            "Gagal menginisialisasi login Google melalui Neon Auth."
+            "Gagal menginisialisasi login dengan akun Google."
         );
         setIsLoading(false);
       }
@@ -60,7 +71,7 @@ function SignInContent() {
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Gagal menghubungkan ke layanan Neon Auth. Periksa koneksi internet Anda atau coba lagi."
+          : "Gagal menghubungkan ke layanan autentikasi. Periksa koneksi internet Anda atau coba lagi."
       );
       setIsLoading(false);
     }
@@ -79,7 +90,7 @@ function SignInContent() {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[11px] font-bold text-brand-primary border border-blue-200 mb-2 shadow-2xs">
               <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
-              <span>Neon Auth • Google Identity</span>
+              <span>Autentikasi Aman • Akses Warga</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-brand-text tracking-tight">
               Masuk ke HAKKU
@@ -136,7 +147,7 @@ function SignInContent() {
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-slate-700 border-t-transparent rounded-full animate-spin" />
-                  <span>Mengarahkan ke Google OAuth...</span>
+                  <span>Mengarahkan ke akun Google...</span>
                 </>
               ) : (
                 <>
@@ -148,7 +159,7 @@ function SignInContent() {
             </button>
 
             <p className="text-[11px] text-center text-slate-500 leading-relaxed">
-              Autentikasi langsung dengan Google OAuth via Neon Auth. Pendaftaran akun baru berlangsung otomatis saat pertama kali masuk.
+              Autentikasi resmi dan aman dengan akun Google. Pendaftaran akun baru berlangsung otomatis saat pertama kali masuk.
             </p>
           </div>
 
@@ -168,7 +179,7 @@ function SignInContent() {
             <span>Kepatuhan UU PDP No. 27/2022</span>
           </span>
           <span>•</span>
-          <span>Enkripsi Database Neon</span>
+          <span>Enkripsi Data Berstandar Industri</span>
         </div>
       </div>
     </div>

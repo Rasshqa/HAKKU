@@ -100,7 +100,7 @@ export default function AccountPage() {
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-[10px] font-bold text-brand-primary border border-blue-200">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Neon Auth • Google Identity</span>
+              <span>Autentikasi Aman • Akun Resmi</span>
             </div>
             <h2 className="text-xl font-bold text-brand-text">
               Belum Masuk ke Akun
@@ -142,7 +142,7 @@ export default function AccountPage() {
             <div className="space-y-1">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[10px] font-bold text-brand-success border border-emerald-200">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Akun Terverifikasi Neon Auth</span>
+                <span>Identitas Terverifikasi</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-brand-text">
                 {session.user.name || "Warga Sadar Hukum"}
