@@ -3,33 +3,46 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:confetti/confetti.dart';
 import '../../../core/constants/app_colors.dart';
 
 enum HakkiMood {
-  welcoming,
-  listening,
-  analyzing,
-  celebrating,
-  empathetic,
+  welcoming('welcoming', 'assets/images/mascot/hakki-welcoming.png'),
+  listening('listening', 'assets/images/mascot/hakki-listening.png'),
+  analyzing('analyzing', 'assets/images/mascot/hakki-analyzing.png'),
+  celebrating('celebrating', 'assets/images/mascot/hakki-celebrating.png'),
+  empathetic('empathetic', 'assets/images/mascot/hakki-welcoming.png');
+
+  final String code;
+  final String assetPath;
+  const HakkiMood(this.code, this.assetPath);
 }
 
-/// HakkiMascotWidget — Maskot Kancil Paralegal HAKKU Interaktif
-/// Dilengkapi animasi nafas/mengambang, telinga bergerak, mata berkedip,
-/// dan reaksi sentuhan interaktif dengan speech bubble dan haptic feedback.
+/// HakkiMascotWidget — Maskot Kancil Paralegal HAKKU Interaktif ala Duolingo.
+/// Fitur interaktif:
+/// 1. Eye & Head Parallax Tracking saat pengguna mengusap layar (Pan gesture).
+/// 2. Squash & Stretch Jumping dengan fisika pegas elastis saat disentuh.
+/// 3. Interaksi Duolingo multi-gestur:
+///    - Ketuk 1x: Lompat riang, kedipan mata, haptic, tips hukum berputar.
+///    - Ketuk 2x: Perayaan pesta konfeti warna-warni (Confetti burst).
+///    - Tahan (Long Press): Partikel hati cinta & afeksi empati.
+/// 4. Seni visual resmi resolusi tinggi identik dengan web HAKKU + fallback vektor kustom.
 class HakkiMascotWidget extends StatefulWidget {
   final double size;
   final HakkiMood initialMood;
   final String? customSpeech;
   final VoidCallback? onTap;
   final bool showSpeechBubble;
+  final bool enableTracking;
 
   const HakkiMascotWidget({
     super.key,
-    this.size = 90,
+    this.size = 110,
     this.initialMood = HakkiMood.welcoming,
     this.customSpeech,
     this.onTap,
     this.showSpeechBubble = true,
+    this.enableTracking = true,
   });
 
   @override
@@ -39,22 +52,30 @@ class HakkiMascotWidget extends StatefulWidget {
 class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
     with TickerProviderStateMixin {
   late final AnimationController _breatheController;
+  late final AnimationController _jumpController;
   late final AnimationController _earController;
-  late final AnimationController _bounceController;
+  late final ConfettiController _confettiController;
 
   late HakkiMood _currentMood;
   int _speechIndex = 0;
   bool _isWinking = false;
+  bool _showHearts = false;
   Timer? _blinkTimer;
   Timer? _winkResetTimer;
+  Timer? _heartTimer;
 
-  final List<String> _legalTips = [
-    'Halo! Sentuh aku untuk tips hukum praktis.',
-    'Ingat: Selalu simpan bukti transfer & screenshot chat WhatsApp!',
-    'Pekerja berhak atas perundingan bipartit 14 hari kerja saat PHK.',
-    'Somasi wanprestasi KUHPerdata memberi tenggat wajar minimal 7 hari.',
-    'Berkas perkara Anda di HAKKU tersimpan privat & aman di perangkat.',
-    'Butuh bantuan cepat? Tekan tombol Darurat di pojok kanan atas!',
+  // Interaktivitas Duolingo: Pelacakan sentuhan jari (Eye / Head Tracking)
+  Offset _lookTarget = Offset.zero; // Relatif -1.0 s/d 1.0
+  Offset _currentLook = Offset.zero;
+
+  static const List<String> _legalTips = [
+    'Hakki siap bantu hitung hak pesangon sesuai PP 35/2021!',
+    'Simpan bukti tangkapan layar percakapan dan mutasi bank sebagai alat bukti sah UU ITE.',
+    'Sengketa sewa atau deposit? Cek Pasal 1238 & 1365 KUHPerdata tentang wanprestasi dan ganti rugi.',
+    'Ada intimidasi pinjol ilegal? Amankan bukti teror dan laporkan ke Satgas PASTI OJK.',
+    'PHK sepihak wajib didahului perundingan bipartit tertulis menurut UU No. 2 Tahun 2004.',
+    'Kuitansi, kontrak, dan bukti transfer adalah fondasi pembuktian perdata yang kuat.',
+    'Semua data Anda terlindungi prinsip privasi UU PDP No. 27 Tahun 2022.',
   ];
 
   @override
@@ -62,77 +83,137 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
     super.initState();
     _currentMood = widget.initialMood;
 
-    // Animasi mengambang / bernafas lembut
+    // Nafas mengambang lembut
     _breatheController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
 
-    // Animasi goyang telinga sesekali
+    // Fisika lompat Duolingo squash & stretch
+    _jumpController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    // Goyang telinga
     _earController = AnimationController(
       vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    // Konfeti perayaan
+    _confettiController = ConfettiController(
       duration: const Duration(milliseconds: 1200),
     );
 
-    // Animasi pantul saat disentuh
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-      lowerBound: 0.9,
-      upperBound: 1.12,
-      value: 1.0,
-    );
-
-    // Timer kedipan mata alami
     _triggerPeriodicBlink();
   }
 
   void _triggerPeriodicBlink() {
     _blinkTimer?.cancel();
-    _blinkTimer = Timer(Duration(milliseconds: 3000 + math.Random().nextInt(3000)), () {
-      if (mounted) {
-        setState(() => _isWinking = true);
-        _winkResetTimer?.cancel();
-        _winkResetTimer = Timer(const Duration(milliseconds: 180), () {
-          if (mounted) {
-            setState(() => _isWinking = false);
-            _triggerPeriodicBlink();
-          }
-        });
-      }
-    });
+    _blinkTimer = Timer(
+      Duration(milliseconds: 2800 + math.Random().nextInt(2500)),
+      () {
+        if (mounted) {
+          setState(() => _isWinking = true);
+          _winkResetTimer?.cancel();
+          _winkResetTimer = Timer(const Duration(milliseconds: 160), () {
+            if (mounted) {
+              setState(() => _isWinking = false);
+              _triggerPeriodicBlink();
+            }
+          });
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
     _blinkTimer?.cancel();
     _winkResetTimer?.cancel();
+    _heartTimer?.cancel();
     _breatheController.dispose();
+    _jumpController.dispose();
     _earController.dispose();
-    _bounceController.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
-  void _handleTap() {
+  void _handleSingleTap() {
     HapticFeedback.lightImpact();
-
-    // Pantulan squash & stretch
-    _bounceController
-        .forward()
-        .then((_) => _bounceController.reverse());
-
-    // Goyangkan telinga
+    _jumpController.forward(from: 0.0);
     _earController.forward(from: 0.0);
 
-    // Ganti tips bicara
     setState(() {
       _speechIndex = (_speechIndex + 1) % _legalTips.length;
-      // Rotasi mood secara acak menyenangkan
       final moods = HakkiMood.values;
-      _currentMood = moods[(_speechIndex) % moods.length];
+      _currentMood = moods[_speechIndex % moods.length];
     });
 
     widget.onTap?.call();
+  }
+
+  void _handleDoubleTap() {
+    HapticFeedback.heavyImpact();
+    _confettiController.play();
+    _jumpController.forward(from: 0.0);
+
+    setState(() {
+      _currentMood = HakkiMood.celebrating;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.stars, color: Colors.amber, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Semangat! Hakki selalu siap mendampingi hak hukum Anda!',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: HakkuColors.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _handleLongPress() {
+    HapticFeedback.vibrate();
+    setState(() {
+      _showHearts = true;
+      _currentMood = HakkiMood.empathetic;
+    });
+
+    _heartTimer?.cancel();
+    _heartTimer = Timer(const Duration(milliseconds: 2000), () {
+      if (mounted) setState(() => _showHearts = false);
+    });
+  }
+
+  void _updateTracking(Offset localPosition, Size widgetSize) {
+    if (!widget.enableTracking) return;
+    final dx = ((localPosition.dx / widgetSize.width) * 2 - 1).clamp(-1.0, 1.0);
+    final dy = ((localPosition.dy / widgetSize.height) * 2 - 1).clamp(-1.0, 1.0);
+    setState(() {
+      _lookTarget = Offset(dx, dy);
+    });
+  }
+
+  void _resetTracking() {
+    setState(() {
+      _lookTarget = Offset.zero;
+    });
   }
 
   @override
@@ -143,17 +224,36 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Speech Bubble Interaktif
+        // Konfeti Emitter di atas kepala Hakki
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConfettiWidget(
+            confettiController: _confettiController,
+            blastDirectionality: BlastDirectionality.explosive,
+            shouldLoop: false,
+            colors: const [
+              HakkuColors.primary,
+              HakkuColors.accent,
+              Colors.amber,
+              Colors.pinkAccent,
+              HakkuColors.success,
+            ],
+            numberOfParticles: 20,
+            gravity: 0.25,
+          ),
+        ),
+
+        // Balon Percakapan Interaktif
         if (widget.showSpeechBubble)
           GestureDetector(
-            onTap: _handleTap,
+            onTap: _handleSingleTap,
             child: Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              constraints: const BoxConstraints(maxWidth: 240),
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              constraints: const BoxConstraints(maxWidth: 260),
               decoration: BoxDecoration(
                 color: HakkuColors.cardSurface,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: HakkuColors.primary.withValues(alpha: 0.25),
                   width: 1.2,
@@ -161,20 +261,20 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
                 boxShadow: [
                   BoxShadow(
                     color: HakkuColors.primary.withValues(alpha: 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    size: 13,
+                  Icon(
+                    _getMoodIcon(_currentMood),
+                    size: 15,
                     color: HakkuColors.accent,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       speechText,
@@ -182,7 +282,7 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: HakkuColors.textMain,
-                        height: 1.3,
+                        height: 1.35,
                       ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -201,47 +301,110 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
                 .fadeIn(duration: 200.ms),
           ),
 
-        // Karakter Hakki Interaktif
+        // Maskot Karakter Interaktif (Interaksi Sentuhan Duolingo)
         GestureDetector(
-          onTap: _handleTap,
+          onTap: _handleSingleTap,
+          onDoubleTap: _handleDoubleTap,
+          onLongPress: _handleLongPress,
+          onPanUpdate: (details) =>
+              _updateTracking(details.localPosition, Size(widget.size, widget.size)),
+          onPanEnd: (_) => _resetTracking(),
+          onPanCancel: _resetTracking,
           child: AnimatedBuilder(
             animation: Listenable.merge([
               _breatheController,
-              _bounceController,
+              _jumpController,
               _earController,
             ]),
             builder: (context, child) {
-              final floatY = math.sin(_breatheController.value * math.pi * 2) * 3.5;
-              final scale = _bounceController.value;
+              // Animasi Fisika Squash & Stretch
+              final jumpProgress = _jumpController.value;
+              final jumpY = -math.sin(jumpProgress * math.pi) * 16.0;
+              final scaleX = 1.0 + (math.sin(jumpProgress * math.pi * 2) * 0.12);
+              final scaleY = 1.0 - (math.sin(jumpProgress * math.pi * 2) * 0.12);
+
+              final floatY =
+                  math.sin(_breatheController.value * math.pi * 2) * 3.5;
+
+              // Interpolasi halusnya tatapan mata & kemiringan kepala
+              _currentLook = Offset.lerp(_currentLook, _lookTarget, 0.25)!;
 
               return Transform.translate(
-                offset: Offset(0, floatY),
+                offset: Offset(0, floatY + jumpY),
                 child: Transform.scale(
-                  scale: scale,
+                  scaleX: scaleX,
+                  scaleY: scaleY,
                   child: Stack(
                     alignment: Alignment.center,
+                    clipBehavior: Clip.none,
                     children: [
-                      // Bayangan lantai
+                      // Bayangan lantai dinamis
                       Positioned(
-                        bottom: 0,
+                        bottom: -4,
                         child: Container(
-                          width: widget.size * 0.65,
+                          width: widget.size * (0.65 - (jumpProgress * 0.2)),
                           height: 7,
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.12 - (floatY * 0.01)),
+                            color: Colors.black.withValues(
+                              alpha: (0.12 - (floatY * 0.01) - (jumpProgress * 0.06))
+                                  .clamp(0.02, 0.15),
+                            ),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
-                      // Gambar Vektor Hakki
-                      SizedBox(
-                        width: widget.size,
-                        height: widget.size,
-                        child: CustomPaint(
-                          painter: _HakkiVectorPainter(
-                            mood: _currentMood,
-                            earWiggle: math.sin(_earController.value * math.pi * 4) * 0.12,
-                            isWinking: _isWinking,
+
+                      // Partikel Cinta saat Long Press
+                      if (_showHearts)
+                        Positioned(
+                          top: -16,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.favorite,
+                                      color: Colors.pinkAccent, size: 16)
+                                  .animate()
+                                  .scale(duration: 400.ms)
+                                  .slideY(begin: 0.2, end: -0.6),
+                              const SizedBox(width: 14),
+                              const Icon(Icons.favorite,
+                                      color: Colors.redAccent, size: 20)
+                                  .animate()
+                                  .scale(duration: 500.ms)
+                                  .slideY(begin: 0.3, end: -0.8),
+                            ],
+                          ),
+                        ),
+
+                      // Render Gambar Maskot Hakki Resmi
+                      Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.001)
+                          ..rotateZ(_currentLook.dx * 0.08) // Kemiringan kepala
+                          ..setTranslationRaw(_currentLook.dx * 4.0, _currentLook.dy * 3.0, 0.0), // Parallaks
+                        child: SizedBox(
+                          width: widget.size,
+                          height: widget.size,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.asset(
+                              _currentMood.assetPath,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                // Fallback Vektor jika asset gambar belum dimuat
+                                return CustomPaint(
+                                  painter: _HakkiVectorPainter(
+                                    mood: _currentMood,
+                                    earWiggle: math.sin(
+                                            _earController.value * math.pi * 4) *
+                                        0.12,
+                                    isWinking: _isWinking,
+                                    lookOffset: _currentLook,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ),
@@ -253,32 +416,38 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
           ),
         ),
 
-        // Hint interaktif kecil
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: HakkuColors.primaryLight,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _getMoodIcon(_currentMood),
-                size: 11,
-                color: HakkuColors.primary,
+        // Lencana Status Mood Interaktif
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: _handleSingleTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: HakkuColors.primaryLight,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: HakkuColors.primary.withValues(alpha: 0.2),
               ),
-              const SizedBox(width: 4),
-              Text(
-                _getMoodLabel(_currentMood),
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getMoodIcon(_currentMood),
+                  size: 11,
                   color: HakkuColors.primary,
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Text(
+                  _getMoodLabel(_currentMood),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: HakkuColors.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -316,16 +485,18 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
   }
 }
 
-/// CustomPainter untuk menggambar Karakter Vektor Hakki si Kancil Paralegal
+/// Fallback CustomPainter Vektor Kancil dengan Eye Tracking
 class _HakkiVectorPainter extends CustomPainter {
   final HakkiMood mood;
   final double earWiggle;
   final bool isWinking;
+  final Offset lookOffset;
 
   _HakkiVectorPainter({
     required this.mood,
     required this.earWiggle,
     required this.isWinking,
+    required this.lookOffset,
   });
 
   @override
@@ -334,210 +505,76 @@ class _HakkiVectorPainter extends CustomPainter {
     canvas.save();
     canvas.scale(scale, scale);
 
-    final furPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFDE8938), Color(0xFFBA621C)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(const Rect.fromLTWH(0, 0, 100, 100));
+    final furPaint = Paint()..color = const Color(0xFFDE8938);
+    final creamPaint = Paint()..color = const Color(0xFFFFFBEB);
+    final eyePaint = Paint()..color = const Color(0xFF1E293B);
+    final pupilPaint = Paint()..color = Colors.white;
 
-    final creamPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFFFFBEB), Color(0xFFFEE685)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(const Rect.fromLTWH(0, 0, 100, 100));
-
-    final pinkEarPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFFDA4AF), Color(0xFFF472B6)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(const Rect.fromLTWH(0, 0, 100, 100));
-
-    final goldPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(const Rect.fromLTWH(0, 0, 100, 100));
-
-    final darkOutline = Paint()
-      ..color = const Color(0xFF8C4210)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    // 1. Telinga Kiri
-    canvas.save();
-    canvas.translate(31, 31);
-    canvas.rotate(earWiggle);
+    // Telinga kiri & kanan dengan goyangan
     final leftEarPath = Path()
-      ..moveTo(0, 0)
-      ..cubicTo(-8, -3, -19, -11, -19, -19)
-      ..cubicTo(-12, -18, -3, -10, 3, -4)
+      ..moveTo(25, 45)
+      ..quadraticBezierTo(12 + earWiggle * 20, 15, 28, 20)
       ..close();
     canvas.drawPath(leftEarPath, furPaint);
-    canvas.drawPath(leftEarPath, darkOutline);
 
-    final leftInnerEar = Path()
-      ..moveTo(-2, -2)
-      ..cubicTo(-8, -5, -15, -11, -15, -17)
-      ..cubicTo(-11, -16, -5, -10, 0, -5)
-      ..close();
-    canvas.drawPath(leftInnerEar, pinkEarPaint);
-    canvas.restore();
-
-    // 2. Telinga Kanan
-    canvas.save();
-    canvas.translate(69, 31);
-    canvas.rotate(-earWiggle);
     final rightEarPath = Path()
-      ..moveTo(0, 0)
-      ..cubicTo(8, -3, 19, -11, 19, -19)
-      ..cubicTo(12, -18, 3, -10, -3, -4)
+      ..moveTo(75, 45)
+      ..quadraticBezierTo(88 - earWiggle * 20, 15, 72, 20)
       ..close();
     canvas.drawPath(rightEarPath, furPaint);
-    canvas.drawPath(rightEarPath, darkOutline);
 
-    final rightInnerEar = Path()
-      ..moveTo(2, -2)
-      ..cubicTo(8, -5, 15, -11, 15, -17)
-      ..cubicTo(11, -16, 5, -10, 0, -5)
-      ..close();
-    canvas.drawPath(rightInnerEar, pinkEarPaint);
-    canvas.restore();
+    // Kepala bulat kancil
+    canvas.drawCircle(const Offset(50, 52), 32, furPaint);
 
-    // 3. Mahkota Tanduk Mini Kancil (Emas)
-    final leftHorn = Path()
-      ..moveTo(37, 23)
-      ..cubicTo(34, 16, 28, 11, 25, 8)
-      ..cubicTo(23.5, 6.5, 21.5, 8, 22.5, 10)
-      ..cubicTo(24.5, 13, 28.5, 17, 31.5, 22)
-      ..close();
-    canvas.drawPath(leftHorn, goldPaint);
-
-    final rightHorn = Path()
-      ..moveTo(63, 23)
-      ..cubicTo(66, 16, 72, 11, 75, 8)
-      ..cubicTo(76.5, 6.5, 78.5, 8, 77.5, 10)
-      ..cubicTo(75.5, 13, 71.5, 17, 68.5, 22)
-      ..close();
-    canvas.drawPath(rightHorn, goldPaint);
-
-    // 4. Badan & Dada Putih
-    final bodyPath = Path()
-      ..moveTo(32, 60)
-      ..cubicTo(28, 70, 26, 82, 34, 88)
-      ..cubicTo(42, 92, 58, 92, 66, 88)
-      ..cubicTo(74, 82, 72, 70, 68, 60)
-      ..close();
-    canvas.drawPath(bodyPath, furPaint);
-
-    final chestPath = Path()
-      ..moveTo(43, 62)
-      ..cubicTo(38, 70, 39, 82, 45, 87)
-      ..cubicTo(48, 89, 52, 89, 55, 87)
-      ..cubicTo(61, 82, 62, 70, 57, 62)
-      ..close();
-    canvas.drawPath(chestPath, Paint()..color = Colors.white);
-
-    // 5. Kepala Bundar Menggemaskan
-    final headPath = Path()
-      ..moveTo(30, 42)
-      ..cubicTo(28, 24, 72, 24, 70, 42)
-      ..cubicTo(73, 52, 70, 62, 64, 64)
-      ..cubicTo(56, 67, 44, 67, 36, 64)
-      ..cubicTo(30, 62, 27, 52, 30, 42)
-      ..close();
-    canvas.drawPath(headPath, furPaint);
-    canvas.drawPath(headPath, darkOutline);
-
-    // 6. Moncong Cerah
-    final muzzlePath = Path()
-      ..moveTo(37, 48)
-      ..cubicTo(37, 43, 63, 43, 63, 48)
-      ..cubicTo(64, 57, 60, 63, 50, 63)
-      ..cubicTo(40, 63, 36, 57, 37, 48)
-      ..close();
-    canvas.drawPath(muzzlePath, creamPaint);
-
-    // Hidung Cokelat Gelap
-    final nosePaint = Paint()..color = const Color(0xFF3E1F0B);
+    // Moncong krem
     canvas.drawOval(
-      Rect.fromCenter(center: const Offset(50, 52), width: 7, height: 4.5),
-      nosePaint,
+      Rect.fromCenter(center: const Offset(50, 64), width: 34, height: 24),
+      creamPaint,
     );
 
-    // Mulut Senyum
-    final mouthPaint = Paint()
-      ..color = const Color(0xFF3E1F0B)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round;
+    // Hidung cokelat kecil
+    final nosePaint = Paint()..color = const Color(0xFF451A03);
+    canvas.drawCircle(const Offset(50, 56), 4, nosePaint);
 
-    final mouth = Path()
-      ..moveTo(46, 56)
-      ..quadraticBezierTo(50, 59, 54, 56);
-    canvas.drawPath(mouth, mouthPaint);
+    // Mata Kiri & Kanan dengan Pelacakan Sentuhan (lookOffset)
+    final eyeShiftX = lookOffset.dx * 3.0;
+    final eyeShiftY = lookOffset.dy * 2.5;
 
-    // 7. Mata Karakter
-    final eyeWhite = Paint()..color = Colors.white;
-    final pupilPaint = Paint()..color = const Color(0xFF1E293B);
-    final shinePaint = Paint()..color = Colors.white;
-
-    // Mata Kiri
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(40, 42), width: 9, height: 11),
-      eyeWhite,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(41, 42), width: 6.5, height: 8),
-      pupilPaint,
-    );
-    canvas.drawCircle(const Offset(42.5, 40), 2, shinePaint);
-    canvas.drawCircle(const Offset(39.5, 44), 1, shinePaint);
-
-    // Mata Kanan (Bisa Kedip/Wink)
     if (isWinking) {
+      // Mata berkedip garis lengkung
       final winkPaint = Paint()
         ..color = const Color(0xFF1E293B)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
+        ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round;
-      final wink = Path()
-        ..moveTo(56, 42)
-        ..quadraticBezierTo(60, 39, 64, 42);
-      canvas.drawPath(wink, winkPaint);
+      canvas.drawArc(
+        const Rect.fromLTWH(34, 42, 10, 8),
+        0,
+        math.pi,
+        false,
+        winkPaint,
+      );
     } else {
-      canvas.drawOval(
-        Rect.fromCenter(center: const Offset(60, 42), width: 9, height: 11),
-        eyeWhite,
-      );
-      canvas.drawOval(
-        Rect.fromCenter(center: const Offset(59, 42), width: 6.5, height: 8),
-        pupilPaint,
-      );
-      canvas.drawCircle(const Offset(60.5, 40), 2, shinePaint);
-      canvas.drawCircle(const Offset(57.5, 44), 1, shinePaint);
+      canvas.drawCircle(const Offset(38, 44), 6, eyePaint);
+      canvas.drawCircle(
+          Offset(38 + eyeShiftX, 44 + eyeShiftY), 2.5, pupilPaint);
     }
 
-    // 8. Dasi Kupu-Kupu Biru Paralegal & Pin Timbangan Keadilan
-    final tiePaint = Paint()..color = const Color(0xFF005BBB);
-    final leftBow = Path()
-      ..moveTo(50, 64)
-      ..lineTo(44, 61.5)
-      ..lineTo(44, 66.5)
-      ..close();
-    final rightBow = Path()
-      ..moveTo(50, 64)
-      ..lineTo(56, 61.5)
-      ..lineTo(56, 66.5)
-      ..close();
-    canvas.drawPath(leftBow, tiePaint);
-    canvas.drawPath(rightBow, tiePaint);
+    // Mata kanan
+    canvas.drawCircle(const Offset(62, 44), 6, eyePaint);
+    canvas.drawCircle(
+        Offset(62 + eyeShiftX, 44 + eyeShiftY), 2.5, pupilPaint);
 
-    // Simpul Emas di tengah
-    canvas.drawCircle(const Offset(50, 64), 2.2, goldPaint);
+    // Senyum ramah
+    final smilePaint = Paint()
+      ..color = const Color(0xFF78350F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+    final smilePath = Path()
+      ..moveTo(44, 66)
+      ..quadraticBezierTo(50, 72, 56, 66);
+    canvas.drawPath(smilePath, smilePaint);
 
     canvas.restore();
   }
@@ -546,6 +583,7 @@ class _HakkiVectorPainter extends CustomPainter {
   bool shouldRepaint(covariant _HakkiVectorPainter oldDelegate) {
     return oldDelegate.mood != mood ||
         oldDelegate.earWiggle != earWiggle ||
-        oldDelegate.isWinking != isWinking;
+        oldDelegate.isWinking != isWinking ||
+        oldDelegate.lookOffset != lookOffset;
   }
 }
