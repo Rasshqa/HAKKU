@@ -6,6 +6,9 @@ import 'features/tools/tools_hub_screen.dart';
 import 'features/tools/calculator_screen.dart';
 import 'features/tools/evidence_screen.dart';
 import 'features/tools/document_screen.dart';
+import 'features/contract/contract_scanner_screen.dart';
+import 'features/referral/referral_directory_screen.dart';
+import 'features/about/about_screen.dart';
 import 'features/cases/cases_list_screen.dart';
 import 'features/cases/case_detail_screen.dart';
 import 'features/emergency/emergency_screen.dart';
@@ -58,6 +61,10 @@ final appRouter = GoRouter(
                 path: 'bukti',
                 builder: (context, state) => const EvidenceScreen(),
               ),
+              GoRoute(
+                path: 'kontrak',
+                builder: (context, state) => const ContractScannerScreen(),
+              ),
             ],
           ),
         ]),
@@ -77,6 +84,16 @@ final appRouter = GoRouter(
           ),
         ]),
       ],
+    ),
+    // Direktori Bantuan Hukum
+    GoRoute(
+      path: '/rujukan',
+      builder: (context, state) => const ReferralDirectoryScreen(),
+    ),
+    // Tentang & Disclaimer Hukum
+    GoRoute(
+      path: '/tentang',
+      builder: (context, state) => const AboutScreen(),
     ),
     // Modal Darurat
     GoRoute(

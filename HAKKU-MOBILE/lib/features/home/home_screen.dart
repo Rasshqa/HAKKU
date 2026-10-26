@@ -447,6 +447,32 @@ class _ToolsPreview extends StatelessWidget {
           onTap: () => context.go('/perangkat/bukti'),
           fullWidth: true,
         ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ToolCard(
+                icon: Icons.gavel_outlined,
+                title: 'Audit Kontrak',
+                subtitle: 'Red-Flag Scan UU',
+                color: HakkuColors.primary,
+                badge: 'Deteksi Ilegal',
+                onTap: () => context.go('/perangkat/kontrak'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ToolCard(
+                icon: Icons.account_balance_outlined,
+                title: 'Direktori LBH',
+                subtitle: 'Posbankum & Disnaker',
+                color: HakkuColors.success,
+                badge: 'Cuma-cuma',
+                onTap: () => context.push('/rujukan'),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

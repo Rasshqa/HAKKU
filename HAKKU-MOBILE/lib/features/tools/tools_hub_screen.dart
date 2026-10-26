@@ -60,6 +60,36 @@ class ToolsHubScreen extends StatelessWidget {
               color: HakkuColors.accent,
               route: '/perangkat/dokumen',
             ).animate().fadeIn(duration: 300.ms, delay: 150.ms),
+            const SizedBox(height: 12),
+            _ToolTile(
+              icon: Icons.gavel_outlined,
+              title: 'Pemeriksa Klausul Kontrak',
+              subtitle:
+                  'Deteksi klausul jebakan ilegal: masa percobaan PKWT, penahanan ijazah, denda sepihak, dan pelanggaran UU PDP',
+              tag: 'Red-Flag Scan',
+              color: HakkuColors.primary,
+              route: '/perangkat/kontrak',
+            ).animate().fadeIn(duration: 300.ms, delay: 200.ms),
+            const SizedBox(height: 12),
+            _ToolTile(
+              icon: Icons.account_balance_outlined,
+              title: 'Direktori Bantuan Hukum (LBH)',
+              subtitle:
+                  'Daftar kontak dan alamat lembaga bantuan hukum cuma-cuma, Posbankum PN/PA, Disnaker, dan Satgas OJK',
+              tag: 'Rujukan',
+              color: HakkuColors.success,
+              route: '/rujukan',
+            ).animate().fadeIn(duration: 300.ms, delay: 250.ms),
+            const SizedBox(height: 12),
+            _ToolTile(
+              icon: Icons.info_outline,
+              title: 'Tentang & Batasan Hukum',
+              subtitle:
+                  'Standar akurasi regulasi, transparansi metodologi AI, dan perlindungan privasi UU PDP No. 27/2022',
+              tag: 'Transparansi',
+              color: HakkuColors.textMuted,
+              route: '/tentang',
+            ).animate().fadeIn(duration: 300.ms, delay: 300.ms),
             const SizedBox(height: 24),
             _LegalCorpusSection(),
           ],
