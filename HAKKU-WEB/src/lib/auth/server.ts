@@ -12,10 +12,17 @@ const baseUrl =
   process.env.NEON_AUTH_BASE_URL ||
   "https://ep-frosty-king-b55chdqv.neonauth.c-7.us-east-2.aws.neon.tech/neondb/auth";
 
+const envSecret =
+  process.env.NEON_AUTH_COOKIE_SECRET || process.env.AUTH_SECRET;
+
+if (!envSecret && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "FATAL SECURITY ERROR: NEON_AUTH_COOKIE_SECRET or AUTH_SECRET environment variable is missing in production."
+  );
+}
+
 const secret =
-  process.env.NEON_AUTH_COOKIE_SECRET ||
-  process.env.AUTH_SECRET ||
-  "fallback_secret_32_characters_minimum_security_key!";
+  envSecret || "fallback_test_secret_min_32_chars_only_for_dev!";
 
 export const auth = createNeonAuth({
   baseUrl,

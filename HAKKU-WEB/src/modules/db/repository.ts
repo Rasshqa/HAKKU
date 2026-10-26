@@ -302,6 +302,9 @@ export class InMemoryCaseRepository implements CaseRepository {
         if (filter.category && filter.category !== "all" && record.category !== filter.category) {
           return false;
         }
+        if (filter.userId !== undefined && record.userId !== filter.userId) {
+          return false;
+        }
         if (search) {
           const matchesCode = record.caseCode.toLowerCase().includes(search);
           const matchesTitle = record.title.toLowerCase().includes(search);
@@ -720,6 +723,15 @@ export class PostgresCaseRepository implements CaseRepository {
     if (filter.category && filter.category !== "all") {
       values.push(filter.category);
       conditions.push(`category = $${values.length}`);
+    }
+
+    if (filter.userId !== undefined) {
+      if (filter.userId === null) {
+        conditions.push(`user_id IS NULL`);
+      } else {
+        values.push(filter.userId);
+        conditions.push(`user_id = $${values.length}`);
+      }
     }
 
     if (filter.search && filter.search.trim()) {

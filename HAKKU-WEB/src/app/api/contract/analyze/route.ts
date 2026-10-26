@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AnalyzeContractInputSchema } from "@/modules/contract/types";
 import { analyzeContractClauses } from "@/modules/contract/analyzer";
+import { enforceRateLimit } from "@/lib/rate-limiter";
 
 export async function POST(req: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(
+    req,
+    { burstLimit: 15, hourlyLimit: 60 },
+    "contract-analyze"
+  );
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const body = await req.json();
     const parsed = AnalyzeContractInputSchema.safeParse(body);

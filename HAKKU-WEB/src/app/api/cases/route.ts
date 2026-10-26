@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { CreateCaseInputSchema, CaseStatus } from "@/modules/db/types";
 import { getCaseRepository } from "@/modules/db/repository";
 import { getServerSessionUser } from "@/lib/auth/server";
+import { enforceRateLimit } from "@/lib/rate-limiter";
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(
+    request,
+    { burstLimit: 15, hourlyLimit: 60 },
+    "cases-create"
+  );
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const rawBody = await request.json().catch(() => null);
 
@@ -18,9 +28,10 @@ export async function POST(request: NextRequest) {
     }
 
     const sessionUser = await getServerSessionUser(request);
+    // Cegah IDOR / user impersonation: userId harus berasal dari sesi terautentikasi
     const bodyWithUser = {
       ...rawBody,
-      userId: rawBody.userId ?? sessionUser?.id ?? null,
+      userId: sessionUser?.id ?? null,
     };
 
     const parseResult = CreateCaseInputSchema.safeParse(bodyWithUser);
@@ -71,6 +82,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const sessionUser = await getServerSessionUser(request);
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get("limit");
     const statusParam = (searchParams.get("status") || "all") as CaseStatus | "all";
@@ -86,6 +98,7 @@ export async function GET(request: NextRequest) {
       status: statusParam,
       category: categoryParam,
       search: searchQuery,
+      userId: sessionUser?.id ?? null,
     });
 
     return NextResponse.json(

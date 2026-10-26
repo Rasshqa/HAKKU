@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
   calculateCompensation,
   TERMINATION_REASONS,
 } from "@/modules/calculator/engine";
+import { enforceRateLimit } from "@/lib/rate-limiter";
 
 const CalculateCompensationSchema = z.object({
   employmentType: z.enum(["pkwtt", "pkwt"]),
@@ -40,7 +41,16 @@ export async function GET() {
   });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(
+    request,
+    { burstLimit: 30, hourlyLimit: 120 },
+    "calculator-post"
+  );
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const rawBody = await request.json();
     const parseResult = CalculateCompensationSchema.safeParse(rawBody);

@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generateLegalDocument, AVAILABLE_DOCUMENT_TEMPLATES } from "@/modules/document/generator";
 import { LegalDocumentType } from "@/modules/document/types";
 import { CaseCategorySchema, UrgencyLevelSchema } from "@/modules/ai/types";
+import { enforceRateLimit } from "@/lib/rate-limiter";
 
 const GenerateDocumentRequestSchema = z.object({
   type: z.enum(["bipartite_request", "somasi_warning", "legal_aid_chronology"]),
@@ -37,7 +38,16 @@ export async function GET() {
   });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(
+    request,
+    { burstLimit: 15, hourlyLimit: 60 },
+    "documents-generate"
+  );
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const rawBody = await request.json();
     const parseResult = GenerateDocumentRequestSchema.safeParse(rawBody);
