@@ -12,7 +12,7 @@
     "test:e2e": "tsx src/modules/db/test-neon-e2e.ts"
   },
   "dependencies": {
-    "@google/genai": "^1.0.0",
+    "@google/genai": "^2.31.0",
     "@neondatabase/auth": "^0.6.0-beta",
     "clsx": "^2.1.1",
     "html2canvas": "^1.4.1",
