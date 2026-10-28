@@ -17,7 +17,7 @@ void main() {
 
     // Initial render
     expect(find.byType(HakkiMascotWidget), findsOneWidget);
-    expect(find.text('Hakki Siap Membantu'), findsOneWidget);
+    expect(find.text('Hakki siap bantu hitung hak pesangon sesuai PP 35/2021!'), findsOneWidget);
 
     // Clean disposal of widget timers
     await tester.pumpWidget(const SizedBox());

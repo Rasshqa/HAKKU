@@ -90,6 +90,16 @@ class ToolsHubScreen extends StatelessWidget {
               color: HakkuColors.textMuted,
               route: '/tentang',
             ).animate().fadeIn(duration: 300.ms, delay: 300.ms),
+            const SizedBox(height: 12),
+            _ToolTile(
+              icon: Icons.auto_stories_outlined,
+              title: 'Panduan Pengenalan (Onboarding)',
+              subtitle:
+                  'Pelajari kembali alur kerja HAKKU dan cara memanfaatkan asisten hukum Hakki',
+              tag: 'Introduksi',
+              color: HakkuColors.primary,
+              route: '/onboarding',
+            ).animate().fadeIn(duration: 300.ms, delay: 350.ms),
             const SizedBox(height: 24),
             _LegalCorpusSection(),
           ],
@@ -121,7 +131,7 @@ class _ToolTile extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        context.go(route);
+        context.push(route);
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -148,9 +158,13 @@ class _ToolTile extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(title,
-                          style:
-                              Theme.of(context).textTheme.titleMedium),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(

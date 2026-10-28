@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 
@@ -13,19 +14,37 @@ class AboutScreen extends StatelessWidget {
     }
   }
 
+  void _navigateBack(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/perangkat');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HakkuColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'Tentang HAKKU',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _navigateBack(context);
+      },
+      child: Scaffold(
+        backgroundColor: HakkuColors.background,
+        appBar: AppBar(
+          title: const Text(
+            'Tentang HAKKU',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: HakkuColors.cardSurface,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _navigateBack(context),
+          ),
         ),
-        backgroundColor: HakkuColors.cardSurface,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
+        body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -43,6 +62,7 @@ class AboutScreen extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

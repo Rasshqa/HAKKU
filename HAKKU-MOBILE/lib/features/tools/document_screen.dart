@@ -125,7 +125,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
         title: const Text('Draf Surat Formil'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/perangkat'),
         ),
         actions: [
           IconButton(

@@ -9,7 +9,8 @@ import '../../domain/intake/intake_engine.dart';
 
 /// Alur 3-langkah: Cerita → Klarifikasi → Ringkasan Fakta
 class IntakeFlowScreen extends StatefulWidget {
-  const IntakeFlowScreen({super.key});
+  final String? initialStory;
+  const IntakeFlowScreen({super.key, this.initialStory});
 
   @override
   State<IntakeFlowScreen> createState() => _IntakeFlowScreenState();
@@ -17,11 +18,17 @@ class IntakeFlowScreen extends StatefulWidget {
 
 class _IntakeFlowScreenState extends State<IntakeFlowScreen> {
   int _currentStep = 0;
-  final _storyController = TextEditingController();
+  late final TextEditingController _storyController;
   CaseFactSummary? _analysis;
   final Map<String, String?> _clarifications = {};
   bool _isAnalyzing = false;
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _storyController = TextEditingController(text: widget.initialStory ?? '');
+  }
 
   @override
   void dispose() {
@@ -51,7 +58,7 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen> {
       if (!mounted) return;
       if (result.requiresEmergencyEscalation) {
         setState(() => _isAnalyzing = false);
-        context.go('/darurat');
+        context.push('/darurat');
         return;
       }
 

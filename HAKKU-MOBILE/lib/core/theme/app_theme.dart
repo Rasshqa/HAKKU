@@ -18,47 +18,53 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: HakkuColors.background,
       textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
-        displayLarge: GoogleFonts.inter(
+        displayLarge: GoogleFonts.sora(
           fontSize: 32,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
           color: HakkuColors.textMain,
+          letterSpacing: -0.8,
+          height: 1.15,
+        ),
+        displayMedium: GoogleFonts.sora(
+          fontSize: 28,
+          fontWeight: FontWeight.w800,
+          color: HakkuColors.textMain,
+          letterSpacing: -0.6,
           height: 1.2,
         ),
-        displayMedium: GoogleFonts.inter(
-          fontSize: 28,
-          fontWeight: FontWeight.w700,
+        headlineLarge: GoogleFonts.sora(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
           color: HakkuColors.textMain,
+          letterSpacing: -0.5,
           height: 1.25,
         ),
-        headlineLarge: GoogleFonts.inter(
-          fontSize: 24,
+        headlineMedium: GoogleFonts.sora(
+          fontSize: 20,
           fontWeight: FontWeight.w700,
           color: HakkuColors.textMain,
+          letterSpacing: -0.4,
           height: 1.3,
         ),
-        headlineMedium: GoogleFonts.inter(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+        titleLarge: GoogleFonts.sora(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
           color: HakkuColors.textMain,
+          letterSpacing: -0.3,
           height: 1.35,
         ),
-        titleLarge: GoogleFonts.inter(
-          fontSize: 18,
+        titleMedium: GoogleFonts.sora(
+          fontSize: 16,
           fontWeight: FontWeight.w600,
           color: HakkuColors.textMain,
+          letterSpacing: -0.2,
           height: 1.4,
         ),
-        titleMedium: GoogleFonts.inter(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: HakkuColors.textMain,
-          height: 1.5,
-        ),
         bodyLarge: GoogleFonts.inter(
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w400,
           color: HakkuColors.textMain,
-          height: 1.5,
+          height: 1.55,
         ),
         bodyMedium: GoogleFonts.inter(
           fontSize: 14,
@@ -70,139 +76,136 @@ class AppTheme {
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: HakkuColors.textMuted,
-          height: 1.5,
+          height: 1.45,
         ),
         labelLarge: GoogleFonts.inter(
           fontSize: 14,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0.1,
+        ),
+        labelSmall: GoogleFonts.jetBrainsMono(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
         ),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: HakkuColors.cardSurface,
         foregroundColor: HakkuColors.textMain,
         elevation: 0,
-        scrolledUnderElevation: 1,
-        shadowColor: HakkuColors.border,
+        scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: GoogleFonts.sora(
           fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w800,
           color: HakkuColors.textMain,
+          letterSpacing: -0.3,
         ),
       ),
       cardTheme: CardThemeData(
         color: HakkuColors.cardSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: HakkuColors.border, width: 1),
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: HakkuColors.border, width: 1.5),
         ),
         margin: EdgeInsets.zero,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: HakkuColors.primary,
-          foregroundColor: HakkuColors.textOnPrimary,
+          foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          textStyle: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.1,
-          ),
           elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: HakkuColors.border, width: 1.5),
+          ),
+          textStyle: GoogleFonts.sora(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: HakkuColors.primary,
+          backgroundColor: Colors.white,
+          foregroundColor: HakkuColors.textMain,
           minimumSize: const Size(double.infinity, 48),
-          side: const BorderSide(color: HakkuColors.primary, width: 1.5),
+          elevation: 0,
+          side: const BorderSide(color: HakkuColors.border, width: 1.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+          textStyle: GoogleFonts.sora(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: HakkuColors.primary,
-          minimumSize: const Size(48, 48),
+          minimumSize: const Size(44, 44),
           textStyle: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: HakkuColors.cardSurface,
+        fillColor: HakkuColors.background,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: HakkuColors.border),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: HakkuColors.border, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: HakkuColors.border),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: HakkuColors.border, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: HakkuColors.primary, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: HakkuColors.primary, width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: HakkuColors.danger),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: HakkuColors.danger, width: 1.5),
         ),
         hintStyle: GoogleFonts.inter(
-          fontSize: 15,
-          color: HakkuColors.textMuted,
-        ),
-        labelStyle: GoogleFonts.inter(
           fontSize: 14,
           color: HakkuColors.textMuted,
         ),
       ),
       dividerTheme: const DividerThemeData(
-        color: HakkuColors.border,
+        color: HakkuColors.borderSubtle,
         thickness: 1,
         space: 0,
-      ),
-      chipTheme: ChipThemeData(
-        backgroundColor: HakkuColors.primaryLight,
-        labelStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: HakkuColors.primary,
-        ),
-        side: BorderSide.none,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: HakkuColors.cardSurface,
         selectedItemColor: HakkuColors.primary,
         unselectedItemColor: HakkuColors.textMuted,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: HakkuColors.textMain,
         contentTextStyle: GoogleFonts.inter(
-          fontSize: 14,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
           color: Colors.white,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: HakkuColors.border, width: 1.5),
+        ),
         behavior: SnackBarBehavior.floating,
       ),
     );

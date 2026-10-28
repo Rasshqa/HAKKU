@@ -107,7 +107,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         title: const Text('Kalkulator Pesangon'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/perangkat'),
         ),
       ),
       body: ListView(

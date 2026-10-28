@@ -128,11 +128,65 @@ class LocalStorage {
   }
 
   static bool getOnboardingCompleted() {
-    return _settingsBox!
-        .get('onboarding_completed', defaultValue: false) as bool;
+    return _settingsBox?.get('onboarding_completed', defaultValue: false) as bool? ?? false;
   }
 
-  static Future<void> setOnboardingCompleted() async {
-    await _settingsBox!.put('onboarding_completed', true);
+  static Future<void> setOnboardingCompleted([bool value = true]) async {
+    await _settingsBox?.put('onboarding_completed', value);
+  }
+
+  // ── Auth Session ───────────────────────────────────────────────────
+
+  static bool isLoggedIn() {
+    return _settingsBox?.get('is_logged_in', defaultValue: false) as bool? ?? false;
+  }
+
+  static Future<void> setLoggedIn(
+    bool value, {
+    String? email,
+    String? displayName,
+    String? photoUrl,
+  }) async {
+    await _settingsBox?.put('is_logged_in', value);
+    if (email != null) await _settingsBox?.put('user_email', email);
+    if (displayName != null) await _settingsBox?.put('user_display_name', displayName);
+    if (photoUrl != null) await _settingsBox?.put('user_photo_url', photoUrl);
+  }
+
+  static String? getUserEmail() {
+    return _settingsBox?.get('user_email') as String?;
+  }
+
+  static String? getUserDisplayName() {
+    return _settingsBox?.get('user_display_name') as String?;
+  }
+
+  static Future<void> logout() async {
+    await _settingsBox?.put('is_logged_in', false);
+    await _settingsBox?.delete('user_email');
+    await _settingsBox?.delete('user_display_name');
+    await _settingsBox?.delete('user_photo_url');
+  }
+
+  // ── AI LLM Configuration ──────────────────────────────────────────
+
+  static String getLlmModel() {
+    return _settingsBox?.get('llm_model', defaultValue: 'gemini-2.5-flash') as String? ?? 'gemini-2.5-flash';
+  }
+
+  static Future<void> setLlmModel(String model) async {
+    await _settingsBox?.put('llm_model', model);
+  }
+
+  static String? getGeminiApiKey() {
+    return _settingsBox?.get('gemini_api_key') as String?;
+  }
+
+  static Future<void> setGeminiApiKey(String? key) async {
+    if (key == null || key.trim().isEmpty) {
+      await _settingsBox?.delete('gemini_api_key');
+    } else {
+      await _settingsBox?.put('gemini_api_key', key.trim());
+    }
   }
 }

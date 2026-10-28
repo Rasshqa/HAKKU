@@ -61,7 +61,11 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
     if (confirmed == true) {
       await LocalStorage.deleteCase(widget.caseCode);
       if (mounted) {
-        context.pop();
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/kasus');
+        }
       }
     }
   }
@@ -78,7 +82,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               const Text('Berkas kasus tidak ditemukan.'),
               const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () => context.pop(),
+                onPressed: () => context.canPop() ? context.pop() : context.go('/kasus'),
                 child: const Text('Kembali'),
               ),
             ],
@@ -96,7 +100,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
         title: Text(c.caseCode),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/kasus'),
         ),
         actions: [
           IconButton(

@@ -143,7 +143,7 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
         title: const Text('Matriks Alat Bukti'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/perangkat'),
         ),
       ),
       body: Stack(

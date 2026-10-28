@@ -2,47 +2,49 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:confetti/confetti.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 
 enum HakkiMood {
-  welcoming('welcoming', 'assets/images/mascot/hakki-welcoming.png'),
-  listening('listening', 'assets/images/mascot/hakki-listening.png'),
-  analyzing('analyzing', 'assets/images/mascot/hakki-analyzing.png'),
-  celebrating('celebrating', 'assets/images/mascot/hakki-celebrating.png'),
-  empathetic('empathetic', 'assets/images/mascot/hakki-welcoming.png');
-
-  final String code;
-  final String assetPath;
-  const HakkiMood(this.code, this.assetPath);
+  welcoming,
+  listening,
+  analyzing,
+  celebrating,
+  empathetic,
 }
 
-/// HakkiMascotWidget — Maskot Kancil Paralegal HAKKU Interaktif ala Duolingo.
-/// Fitur interaktif:
-/// 1. Eye & Head Parallax Tracking saat pengguna mengusap layar (Pan gesture).
-/// 2. Squash & Stretch Jumping dengan fisika pegas elastis saat disentuh.
-/// 3. Interaksi Duolingo multi-gestur:
-///    - Ketuk 1x: Lompat riang, kedipan mata, haptic, tips hukum berputar.
-///    - Ketuk 2x: Perayaan pesta konfeti warna-warni (Confetti burst).
-///    - Tahan (Long Press): Partikel hati cinta & afeksi empati.
-/// 4. Seni visual resmi resolusi tinggi identik dengan web HAKKU + fallback vektor kustom.
+/// HakkiMascotWidget — Maskot Vektor 2D Kancil Paralegal HAKKU Interaktif ala Duolingo.
+/// Identik 100% dengan maskot vektor resmi di website HAKKU (HakkiDuoInteractive).
+///
+/// Spesifikasi Visual Arsitektural:
+/// 1. Medali circular base dengan outline tebal 2.8px dan bayangan offset keras neo-brutalis.
+/// 2. Jas blazer obsidian navy (#0F172A), kemeja putih kerah tegak, dasi sutra sian (#00F0FF),
+///    pin timbangan hukum emas (#FBBF24), dan saputangan saku sian.
+/// 3. Cakar kiri memegang Kitab Hukum (KUHAP / UU) dengan pita pembatas sian.
+/// 4. Cakar kanan melambai ramah dengan bantalan cakar kancil.
+/// 5. Mata ekspresif Duolingo dengan busur iris sian (#00F0FF), kelopak kedip, dan pelacakan tatapan.
+/// 6. Balon ucapan arsitektural dengan garis batas 2px, bayangan offset keras 4px #1B365D,
+///    dan tips regulasi hukum resmi (PP 35/2021, UU ITE 1/2024, KUHPerdata, UU PDP 27/2022).
 class HakkiMascotWidget extends StatefulWidget {
   final double size;
   final HakkiMood initialMood;
   final String? customSpeech;
+  final int characterCount;
+  final bool isTyping;
   final VoidCallback? onTap;
   final bool showSpeechBubble;
-  final bool enableTracking;
+  final bool isHorizontal;
 
   const HakkiMascotWidget({
     super.key,
-    this.size = 110,
+    this.size = 140,
     this.initialMood = HakkiMood.welcoming,
     this.customSpeech,
+    this.characterCount = 0,
+    this.isTyping = false,
     this.onTap,
     this.showSpeechBubble = true,
-    this.enableTracking = true,
+    this.isHorizontal = false,
   });
 
   @override
@@ -54,21 +56,20 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
   late final AnimationController _breatheController;
   late final AnimationController _jumpController;
   late final AnimationController _earController;
-  late final ConfettiController _confettiController;
+  late final AnimationController _waveController;
+  late final AnimationController _wobbleController;
 
   late HakkiMood _currentMood;
-  int _speechIndex = 0;
+  int _tipIndex = 0;
   bool _isWinking = false;
-  bool _showHearts = false;
+  bool _isPressed = false;
   Timer? _blinkTimer;
   Timer? _winkResetTimer;
-  Timer? _heartTimer;
 
-  // Interaktivitas Duolingo: Pelacakan sentuhan jari (Eye / Head Tracking)
-  Offset _lookTarget = Offset.zero; // Relatif -1.0 s/d 1.0
+  Offset _lookTarget = Offset.zero;
   Offset _currentLook = Offset.zero;
 
-  static const List<String> _legalTips = [
+  static const List<String> _statutoryTips = [
     'Hakki siap bantu hitung hak pesangon sesuai PP 35/2021!',
     'Simpan bukti tangkapan layar percakapan dan mutasi bank sebagai alat bukti sah UU ITE.',
     'Sengketa sewa atau deposit? Cek Pasal 1238 & 1365 KUHPerdata tentang wanprestasi dan ganti rugi.',
@@ -86,329 +87,363 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
     // Nafas mengambang lembut
     _breatheController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 3200),
     )..repeat(reverse: true);
 
     // Fisika lompat Duolingo squash & stretch
     _jumpController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 380),
     );
 
-    // Goyang telinga
+    // Kedutan telinga kancil
     _earController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+
+    // Lambaian tangan ramah
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+
+    // Goyang taktil interaktif (wobble tilt) ala Duolingo
+    _wobbleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
     );
 
-    // Konfeti perayaan
-    _confettiController = ConfettiController(
-      duration: const Duration(milliseconds: 1200),
-    );
-
-    _triggerPeriodicBlink();
+    _scheduleNextBlink();
   }
 
-  void _triggerPeriodicBlink() {
+  void _scheduleNextBlink() {
     _blinkTimer?.cancel();
     _blinkTimer = Timer(
-      Duration(milliseconds: 2800 + math.Random().nextInt(2500)),
+      Duration(milliseconds: 2600 + math.Random().nextInt(2200)),
       () {
-        if (mounted) {
-          setState(() => _isWinking = true);
-          _winkResetTimer?.cancel();
-          _winkResetTimer = Timer(const Duration(milliseconds: 160), () {
-            if (mounted) {
-              setState(() => _isWinking = false);
-              _triggerPeriodicBlink();
-            }
-          });
-        }
+        if (!mounted) return;
+        setState(() => _isWinking = true);
+        _winkResetTimer?.cancel();
+        _winkResetTimer = Timer(const Duration(milliseconds: 140), () {
+          if (!mounted) return;
+          setState(() => _isWinking = false);
+          _scheduleNextBlink();
+        });
       },
     );
+  }
+
+  @override
+  void didUpdateWidget(covariant HakkiMascotWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialMood != widget.initialMood) {
+      setState(() {
+        _currentMood = widget.initialMood;
+      });
+      if (widget.initialMood == HakkiMood.celebrating) {
+        _jumpController.forward(from: 0.0);
+        _wobbleController.forward(from: 0.0);
+      }
+    }
   }
 
   @override
   void dispose() {
     _blinkTimer?.cancel();
     _winkResetTimer?.cancel();
-    _heartTimer?.cancel();
     _breatheController.dispose();
     _jumpController.dispose();
     _earController.dispose();
-    _confettiController.dispose();
+    _waveController.dispose();
+    _wobbleController.dispose();
     super.dispose();
   }
 
-  void _handleSingleTap() {
+  void _handleTap() {
     HapticFeedback.lightImpact();
-    _jumpController.forward(from: 0.0);
-    _earController.forward(from: 0.0);
-
     setState(() {
-      _speechIndex = (_speechIndex + 1) % _legalTips.length;
-      final moods = HakkiMood.values;
-      _currentMood = moods[_speechIndex % moods.length];
+      _tipIndex = (_tipIndex + 1) % _statutoryTips.length;
+      _isWinking = true;
+    });
+
+    _jumpController.forward(from: 0.0);
+    _wobbleController.forward(from: 0.0);
+    Future.delayed(const Duration(milliseconds: 180), () {
+      if (mounted) setState(() => _isWinking = false);
     });
 
     widget.onTap?.call();
   }
 
   void _handleDoubleTap() {
-    HapticFeedback.heavyImpact();
-    _confettiController.play();
-    _jumpController.forward(from: 0.0);
-
+    HapticFeedback.mediumImpact();
     setState(() {
       _currentMood = HakkiMood.celebrating;
     });
+    _jumpController.forward(from: 0.0);
+    _wobbleController.forward(from: 0.0);
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      if (mounted) setState(() => _currentMood = widget.initialMood);
+    });
+  }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.stars, color: Colors.amber, size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Semangat! Hakki selalu siap mendampingi hak hukum Anda!',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: HakkuColors.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+  String _getActiveSpeechText() {
+    if (widget.customSpeech != null) return widget.customSpeech!;
+    if (widget.isTyping) {
+      return 'Hakki sedang memetakan kronologi dan entitas hukum Anda...';
     }
-  }
-
-  void _handleLongPress() {
-    HapticFeedback.vibrate();
-    setState(() {
-      _showHearts = true;
-      _currentMood = HakkiMood.empathetic;
-    });
-
-    _heartTimer?.cancel();
-    _heartTimer = Timer(const Duration(milliseconds: 2000), () {
-      if (mounted) setState(() => _showHearts = false);
-    });
-  }
-
-  void _updateTracking(Offset localPosition, Size widgetSize) {
-    if (!widget.enableTracking) return;
-    final dx = ((localPosition.dx / widgetSize.width) * 2 - 1).clamp(-1.0, 1.0);
-    final dy = ((localPosition.dy / widgetSize.height) * 2 - 1).clamp(-1.0, 1.0);
-    setState(() {
-      _lookTarget = Offset(dx, dy);
-    });
-  }
-
-  void _resetTracking() {
-    setState(() {
-      _lookTarget = Offset.zero;
-    });
+    if (widget.characterCount > 0) {
+      if (widget.characterCount < 20) {
+        return 'Teruskan! Tambahkan kronologi dan pihak terkait (${widget.characterCount} karakter).';
+      }
+      return 'Kronologi lengkap terbaca. Siap dianalisis pasalnya.';
+    }
+    return _statutoryTips[_tipIndex % _statutoryTips.length];
   }
 
   @override
   Widget build(BuildContext context) {
-    final speechText = widget.customSpeech ?? _legalTips[_speechIndex];
+    final speechText = _getActiveSpeechText();
+
+    if (widget.isHorizontal) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _buildMascotAvatar(),
+          if (widget.showSpeechBubble) ...[
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildSpeechBubble(speechText, isHorizontal: true),
+            ),
+          ],
+        ],
+      );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Konfeti Emitter di atas kepala Hakki
-        Align(
-          alignment: Alignment.topCenter,
-          child: ConfettiWidget(
-            confettiController: _confettiController,
-            blastDirectionality: BlastDirectionality.explosive,
-            shouldLoop: false,
-            colors: const [
-              HakkuColors.primary,
-              HakkuColors.accent,
-              Colors.amber,
-              Colors.pinkAccent,
-              HakkuColors.success,
-            ],
-            numberOfParticles: 20,
-            gravity: 0.25,
+        if (widget.showSpeechBubble)
+          _buildSpeechBubble(speechText, isHorizontal: false),
+        _buildMascotAvatar(),
+        const SizedBox(height: 12),
+        Text(
+          'KLIK HAKKI UNTUK TIPS HUKUM',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 8.5,
+            fontWeight: FontWeight.w600,
+            color: HakkuColors.textMuted,
+            letterSpacing: 0.5,
           ),
         ),
+      ],
+    );
+  }
 
-        // Balon Percakapan Interaktif
-        if (widget.showSpeechBubble)
-          GestureDetector(
-            onTap: _handleSingleTap,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              constraints: const BoxConstraints(maxWidth: 260),
-              decoration: BoxDecoration(
-                color: HakkuColors.cardSurface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: HakkuColors.primary.withValues(alpha: 0.25),
-                  width: 1.2,
+  Widget _buildSpeechBubble(String speechText, {required bool isHorizontal}) {
+    return Container(
+      margin: EdgeInsets.only(bottom: isHorizontal ? 0 : 12),
+      constraints: isHorizontal ? null : const BoxConstraints(maxWidth: 320),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: HakkuColors.border, width: 2),
+        boxShadow: HakkuColors.neoShadow(
+          color: HakkuColors.primary,
+          offset: 3,
+        ),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Aksen Garis Biru Navy di sudut
+              Container(
+                width: 20,
+                height: 2.5,
+                margin: const EdgeInsets.only(bottom: 5),
+                decoration: BoxDecoration(
+                  color: HakkuColors.primary,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: HakkuColors.primary.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    _getMoodIcon(_currentMood),
-                    size: 15,
-                    color: HakkuColors.accent,
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: HakkuColors.primary,
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(color: HakkuColors.border, width: 1),
+                    ),
+                    child: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      color: Colors.white,
+                      size: 11,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      speechText,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: HakkuColors.textMain,
-                        height: 1.35,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'HAKKI · PENDAMPING AI',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: HakkuColors.textMain,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          speechText,
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            color: HakkuColors.textMain,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            )
-                .animate(key: ValueKey(_speechIndex))
-                .scale(
-                  begin: const Offset(0.92, 0.92),
-                  end: const Offset(1.0, 1.0),
-                  duration: 250.ms,
-                  curve: Curves.easeOutBack,
-                )
-                .fadeIn(duration: 200.ms),
+            ],
           ),
 
-        // Maskot Karakter Interaktif (Interaksi Sentuhan Duolingo)
+          // Ekor Balon Percakapan: Menunjuk ke kiri saat horizontal, ke bawah saat vertikal
+          if (isHorizontal)
+            Positioned(
+              top: 18,
+              left: -17,
+              child: Transform.rotate(
+                angle: math.pi / 4,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: HakkuColors.border, width: 2),
+                      left: BorderSide(color: HakkuColors.border, width: 2),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else
+            Positioned(
+              bottom: -15,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Transform.rotate(
+                  angle: math.pi / 4,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        bottom: BorderSide(color: HakkuColors.border, width: 2),
+                        right: BorderSide(color: HakkuColors.border, width: 2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMascotAvatar() {
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        // Karakter Maskot Interaktif dengan Gestur & Taktil
         GestureDetector(
-          onTap: _handleSingleTap,
+          onTapDown: (_) {
+            HapticFeedback.selectionClick();
+            setState(() => _isPressed = true);
+          },
+          onTapUp: (_) => setState(() => _isPressed = false),
+          onTapCancel: () => setState(() => _isPressed = false),
+          onTap: _handleTap,
           onDoubleTap: _handleDoubleTap,
-          onLongPress: _handleLongPress,
-          onPanUpdate: (details) =>
-              _updateTracking(details.localPosition, Size(widget.size, widget.size)),
-          onPanEnd: (_) => _resetTracking(),
-          onPanCancel: _resetTracking,
+          onPanUpdate: (details) {
+            final center = Offset(widget.size / 2, widget.size / 2);
+            final delta = details.localPosition - center;
+            setState(() {
+              _lookTarget = Offset(
+                (delta.dx / (widget.size / 2)).clamp(-1.0, 1.0),
+                (delta.dy / (widget.size / 2)).clamp(-1.0, 1.0),
+              );
+            });
+          },
+          onPanEnd: (_) => setState(() => _lookTarget = Offset.zero),
           child: AnimatedBuilder(
             animation: Listenable.merge([
               _breatheController,
               _jumpController,
               _earController,
+              _waveController,
+              _wobbleController,
             ]),
             builder: (context, child) {
-              // Animasi Fisika Squash & Stretch
-              final jumpProgress = _jumpController.value;
-              final jumpY = -math.sin(jumpProgress * math.pi) * 16.0;
-              final scaleX = 1.0 + (math.sin(jumpProgress * math.pi * 2) * 0.12);
-              final scaleY = 1.0 - (math.sin(jumpProgress * math.pi * 2) * 0.12);
+              final jumpVal = _jumpController.value;
+              final jumpY = -math.sin(jumpVal * math.pi) * 16.0;
 
-              final floatY =
-                  math.sin(_breatheController.value * math.pi * 2) * 3.5;
+              // Squash & stretch dinamis
+              final pressSquash = _isPressed ? 1.08 : 1.0;
+              final pressStretch = _isPressed ? 0.92 : 1.0;
 
-              // Interpolasi halusnya tatapan mata & kemiringan kepala
+              final squash = (1.0 + (math.sin(jumpVal * math.pi * 2) * 0.12)) * pressSquash;
+              final stretch = (1.0 - (math.sin(jumpVal * math.pi * 2) * 0.12)) * pressStretch;
+
+              // Goyangan elastis (wobble tilt)
+              final wobbleProgress = _wobbleController.value;
+              final wobbleAngle = math.sin(wobbleProgress * math.pi * 3) *
+                  (1.0 - wobbleProgress) *
+                  0.10;
+
+              final floatY = math.sin(_breatheController.value * math.pi * 2) * 2.8;
               _currentLook = Offset.lerp(_currentLook, _lookTarget, 0.25)!;
 
-              return Transform.translate(
-                offset: Offset(0, floatY + jumpY),
-                child: Transform.scale(
-                  scaleX: scaleX,
-                  scaleY: scaleY,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Bayangan lantai dinamis
-                      Positioned(
-                        bottom: -4,
-                        child: Container(
-                          width: widget.size * (0.65 - (jumpProgress * 0.2)),
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(
-                              alpha: (0.12 - (floatY * 0.01) - (jumpProgress * 0.06))
-                                  .clamp(0.02, 0.15),
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+              return Transform.rotate(
+                angle: wobbleAngle,
+                alignment: Alignment.bottomCenter,
+                child: Transform.translate(
+                  offset: Offset(0, floatY + jumpY),
+                  child: Transform.scale(
+                    scaleX: squash,
+                    scaleY: stretch,
+                    alignment: Alignment.bottomCenter,
+                    child: SizedBox(
+                      width: widget.size,
+                      height: widget.size,
+                      child: CustomPaint(
+                        painter: _HakkiVectorMasterPainter(
+                          mood: _currentMood,
+                          earTwitch: _earController.value,
+                          waveHand: _waveController.value,
+                          isWinking: _isWinking,
+                          lookOffset: _currentLook,
                         ),
                       ),
-
-                      // Partikel Cinta saat Long Press
-                      if (_showHearts)
-                        Positioned(
-                          top: -16,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.favorite,
-                                      color: Colors.pinkAccent, size: 16)
-                                  .animate()
-                                  .scale(duration: 400.ms)
-                                  .slideY(begin: 0.2, end: -0.6),
-                              const SizedBox(width: 14),
-                              const Icon(Icons.favorite,
-                                      color: Colors.redAccent, size: 20)
-                                  .animate()
-                                  .scale(duration: 500.ms)
-                                  .slideY(begin: 0.3, end: -0.8),
-                            ],
-                          ),
-                        ),
-
-                      // Render Gambar Maskot Hakki Resmi
-                      Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()
-                          ..setEntry(3, 2, 0.001)
-                          ..rotateZ(_currentLook.dx * 0.08) // Kemiringan kepala
-                          ..setTranslationRaw(_currentLook.dx * 4.0, _currentLook.dy * 3.0, 0.0), // Parallaks
-                        child: SizedBox(
-                          width: widget.size,
-                          height: widget.size,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.asset(
-                              _currentMood.assetPath,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                // Fallback Vektor jika asset gambar belum dimuat
-                                return CustomPaint(
-                                  painter: _HakkiVectorPainter(
-                                    mood: _currentMood,
-                                    earWiggle: math.sin(
-                                            _earController.value * math.pi * 4) *
-                                        0.12,
-                                    isWinking: _isWinking,
-                                    lookOffset: _currentLook,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -416,34 +451,36 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
           ),
         ),
 
-        // Lencana Status Mood Interaktif
-        const SizedBox(height: 6),
-        GestureDetector(
-          onTap: _handleSingleTap,
+        // Lencana Status Neo-Brutalis Menempel di Bawah Medali (Persis Web)
+        Positioned(
+          bottom: -6,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: HakkuColors.primaryLight,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: HakkuColors.primary.withValues(alpha: 0.2),
+              color: HakkuColors.border,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.black, width: 1.5),
+              boxShadow: HakkuColors.neoShadow(
+                color: HakkuColors.primary,
+                offset: 2,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  _getMoodIcon(_currentMood),
-                  size: 11,
-                  color: HakkuColors.primary,
+                const Icon(
+                  Icons.balance,
+                  color: Color(0xFF00F0FF),
+                  size: 10,
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _getMoodLabel(_currentMood),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: HakkuColors.primary,
+                  'HAKKI · AI PARALEGAL',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.7,
                   ),
                 ),
               ],
@@ -453,136 +490,594 @@ class _HakkiMascotWidgetState extends State<HakkiMascotWidget>
       ],
     );
   }
-
-  IconData _getMoodIcon(HakkiMood mood) {
-    switch (mood) {
-      case HakkiMood.welcoming:
-        return Icons.waving_hand;
-      case HakkiMood.listening:
-        return Icons.hearing;
-      case HakkiMood.analyzing:
-        return Icons.psychology;
-      case HakkiMood.celebrating:
-        return Icons.celebration;
-      case HakkiMood.empathetic:
-        return Icons.favorite;
-    }
-  }
-
-  String _getMoodLabel(HakkiMood mood) {
-    switch (mood) {
-      case HakkiMood.welcoming:
-        return 'Hakki Siap Membantu';
-      case HakkiMood.listening:
-        return 'Mendengarkan Seksama';
-      case HakkiMood.analyzing:
-        return 'Menganalisis Dasar Hukum';
-      case HakkiMood.celebrating:
-        return 'Hak Anda Terlindungi!';
-      case HakkiMood.empathetic:
-        return 'Pahami Hak Warga';
-    }
-  }
 }
 
-/// Fallback CustomPainter Vektor Kancil dengan Eye Tracking
-class _HakkiVectorPainter extends CustomPainter {
+/// Master Painter Vektor Hakki Kancil Resmi HAKKU (Berdasarkan HakkiDuoInteractive)
+class _HakkiVectorMasterPainter extends CustomPainter {
   final HakkiMood mood;
-  final double earWiggle;
+  final double earTwitch;
+  final double waveHand;
   final bool isWinking;
   final Offset lookOffset;
 
-  _HakkiVectorPainter({
+  _HakkiVectorMasterPainter({
     required this.mood,
-    required this.earWiggle,
+    required this.earTwitch,
+    required this.waveHand,
     required this.isWinking,
     required this.lookOffset,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final scale = size.width / 100.0;
+    // Normalisasi kanvas ke 140 x 140 (koordinat desain HakkiDuoInteractive)
+    final scale = size.width / 140.0;
     canvas.save();
     canvas.scale(scale, scale);
 
-    final furPaint = Paint()..color = const Color(0xFFDE8938);
-    final creamPaint = Paint()..color = const Color(0xFFFFFBEB);
-    final eyePaint = Paint()..color = const Color(0xFF1E293B);
-    final pupilPaint = Paint()..color = Colors.white;
-
-    // Telinga kiri & kanan dengan goyangan
-    final leftEarPath = Path()
-      ..moveTo(25, 45)
-      ..quadraticBezierTo(12 + earWiggle * 20, 15, 28, 20)
-      ..close();
-    canvas.drawPath(leftEarPath, furPaint);
-
-    final rightEarPath = Path()
-      ..moveTo(75, 45)
-      ..quadraticBezierTo(88 - earWiggle * 20, 15, 72, 20)
-      ..close();
-    canvas.drawPath(rightEarPath, furPaint);
-
-    // Kepala bulat kancil
-    canvas.drawCircle(const Offset(50, 52), 32, furPaint);
-
-    // Moncong krem
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(50, 64), width: 34, height: 24),
-      creamPaint,
+    // 1. Cincin Sian Halus (Vector Crisp Ring — Tanpa Filter Blur Rusak)
+    canvas.drawCircle(
+      const Offset(70, 70),
+      54.5,
+      Paint()
+        ..color = const Color(0xFF00F0FF).withValues(alpha: 0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0,
     );
 
-    // Hidung cokelat kecil
-    final nosePaint = Paint()..color = const Color(0xFF451A03);
-    canvas.drawCircle(const Offset(50, 56), 4, nosePaint);
+    // 2. Medali Base Lingkaran Offset Keras Neo-Brutalis
+    canvas.drawCircle(const Offset(73, 73), 50.5, Paint()..color = const Color(0xFF0F172A));
 
-    // Mata Kiri & Kanan dengan Pelacakan Sentuhan (lookOffset)
-    final eyeShiftX = lookOffset.dx * 3.0;
-    final eyeShiftY = lookOffset.dy * 2.5;
+    final baseFillPaint = Paint()..color = const Color(0xFFFFFDF9);
+    final baseStrokePaint = Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.8;
+    canvas.drawCircle(const Offset(70, 70), 50.5, baseFillPaint);
+    canvas.drawCircle(const Offset(70, 70), 50.5, baseStrokePaint);
+
+    // Cincin interior medali
+    final innerRingPaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawCircle(const Offset(70, 70), 46.5, innerRingPaint);
+
+    // 3. Batang Leher & Garis Tenggorokan Kancil
+    final neckPath = Path()
+      ..moveTo(61, 74)
+      ..lineTo(79, 74)
+      ..lineTo(81, 86)
+      ..lineTo(59, 86)
+      ..close();
+    canvas.drawPath(neckPath, Paint()..color = const Color(0xFFD97706));
+    canvas.drawPath(neckPath, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0);
+
+    // Garis putih tenggorokan
+    final throatPath = Path()
+      ..moveTo(66, 75)
+      ..lineTo(74, 75)
+      ..lineTo(75, 85)
+      ..lineTo(65, 85)
+      ..close();
+    canvas.drawPath(throatPath, Paint()..color = const Color(0xFFFFFBEB));
+
+    // 4. Jas Blazer Obsidian-Navy Advokat & Bahu
+    final suitPath = Path()
+      ..moveTo(35, 114)
+      ..cubicTo(36, 90, 48, 81, 70, 81)
+      ..cubicTo(92, 81, 104, 90, 105, 114)
+      ..cubicTo(88, 122, 52, 122, 35, 114)
+      ..close();
+    canvas.drawPath(suitPath, Paint()..color = const Color(0xFF0F172A));
+    canvas.drawPath(suitPath, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5);
+
+    // Kemeja Putih Kerah Advokat
+    final shirtPath = Path()
+      ..moveTo(55, 81)
+      ..lineTo(70, 105)
+      ..lineTo(85, 81)
+      ..close();
+    canvas.drawPath(shirtPath, Paint()..color = Colors.white);
+    canvas.drawPath(shirtPath, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0);
+
+    // Kerah kemeja kiri & kanan
+    final leftCollar = Path()
+      ..moveTo(56, 80)
+      ..lineTo(66, 89)
+      ..lineTo(61, 93)
+      ..lineTo(52, 84)
+      ..close();
+    canvas.drawPath(leftCollar, Paint()..color = const Color(0xFFF8FAFC));
+    canvas.drawPath(leftCollar, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8);
+
+    final rightCollar = Path()
+      ..moveTo(84, 80)
+      ..lineTo(74, 89)
+      ..lineTo(79, 93)
+      ..lineTo(88, 84)
+      ..close();
+    canvas.drawPath(rightCollar, Paint()..color = const Color(0xFFF8FAFC));
+    canvas.drawPath(rightCollar, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8);
+
+    // Dasi Sutra Sian Hakki (#00F0FF)
+    final tiePath = Path()
+      ..moveTo(66.5, 86)
+      ..lineTo(73.5, 86)
+      ..lineTo(75, 103)
+      ..lineTo(70, 109)
+      ..lineTo(65, 103)
+      ..close();
+    canvas.drawPath(tiePath, Paint()..color = const Color(0xFF00F0FF));
+    canvas.drawPath(tiePath, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8);
+
+    // Simpul dasi
+    final tieKnot = Path()
+      ..moveTo(65.5, 82.5)
+      ..lineTo(74.5, 82.5)
+      ..lineTo(73, 87.5)
+      ..lineTo(67, 87.5)
+      ..close();
+    canvas.drawPath(tieKnot, Paint()..color = const Color(0xFF00D4E2));
+    canvas.drawPath(tieKnot, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7);
+
+    // Penjepit Dasi Emas (Gold Tie Clip)
+    final tieClip = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(66, 95, 8, 2.2),
+      const Radius.circular(1),
+    );
+    canvas.drawRRect(tieClip, Paint()..color = const Color(0xFFFBBF24));
+    canvas.drawRRect(tieClip, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.9);
+
+    // Saputangan Saku Sian & Pin Kerah Timbangan Hukum Emas
+    final pocketSquare = Path()
+      ..moveTo(82, 99)
+      ..lineTo(87, 95)
+      ..lineTo(91, 99)
+      ..close();
+    canvas.drawPath(pocketSquare, Paint()..color = const Color(0xFF00F0FF));
+    canvas.drawPath(pocketSquare, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3);
+
+    // Pin kerah emas
+    canvas.drawCircle(const Offset(54, 93), 3.2, Paint()..color = const Color(0xFFFBBF24));
+    canvas.drawCircle(const Offset(54, 93), 3.2, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2);
+    canvas.drawCircle(const Offset(54, 93), 1.2, Paint()..color = const Color(0xFF00F0FF));
+
+    // 5. Telinga Kancil Daun (Kiri & Kanan dengan Goyangan)
+    final earTwitchDeg = (earTwitch - 0.5) * 8.0;
+
+    // Telinga Kiri
+    canvas.save();
+    canvas.translate(46, 42);
+    canvas.rotate(-earTwitchDeg * math.pi / 180);
+    canvas.translate(-46, -42);
+
+    final leftEarPath = Path()
+      ..moveTo(47, 44)
+      ..cubicTo(33, 38, 20, 25, 22, 12)
+      ..cubicTo(34, 11, 48, 22, 54, 37)
+      ..close();
+    canvas.drawPath(leftEarPath, Paint()..color = const Color(0xFFF59E0B));
+    canvas.drawPath(leftEarPath, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4);
+
+    // Ujung telinga cokelat tua
+    final leftEarTip = Path()
+      ..moveTo(22, 12)
+      ..cubicTo(26, 12, 31, 14, 34, 17)
+      ..cubicTo(29, 18, 25, 19, 23, 22)
+      ..cubicTo(21.5, 18, 21.5, 15, 22, 12)
+      ..close();
+    canvas.drawPath(leftEarTip, Paint()..color = const Color(0xFF78350F));
+
+    // Daun telinga dalam merah muda
+    final leftInnerEar = Path()
+      ..moveTo(46, 40)
+      ..cubicTo(36, 35, 28, 25, 28, 17)
+      ..cubicTo(36, 18, 44, 26, 49, 36)
+      ..close();
+    canvas.drawPath(leftInnerEar, Paint()..color = const Color(0xFFFDA4AF));
+
+    // Anting sian teknologi kancil
+    canvas.drawCircle(const Offset(26, 22), 2.4, Paint()..color = const Color(0xFF00F0FF));
+    canvas.drawCircle(const Offset(26, 22), 2.4, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1);
+    canvas.restore();
+
+    // Telinga Kanan
+    canvas.save();
+    canvas.translate(94, 42);
+    canvas.rotate(earTwitchDeg * math.pi / 180);
+    canvas.translate(-94, -42);
+
+    final rightEarPath = Path()
+      ..moveTo(93, 44)
+      ..cubicTo(107, 38, 120, 25, 118, 12)
+      ..cubicTo(106, 11, 92, 22, 86, 37)
+      ..close();
+    canvas.drawPath(rightEarPath, Paint()..color = const Color(0xFFF59E0B));
+    canvas.drawPath(rightEarPath, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4);
+
+    final rightEarTip = Path()
+      ..moveTo(118, 12)
+      ..cubicTo(114, 12, 109, 14, 106, 17)
+      ..cubicTo(111, 18, 115, 19, 117, 22)
+      ..cubicTo(118.5, 18, 118.5, 15, 118, 12)
+      ..close();
+    canvas.drawPath(rightEarTip, Paint()..color = const Color(0xFF78350F));
+
+    final rightInnerEar = Path()
+      ..moveTo(94, 40)
+      ..cubicTo(104, 35, 112, 25, 112, 17)
+      ..cubicTo(104, 18, 96, 26, 91, 36)
+      ..close();
+    canvas.drawPath(rightInnerEar, Paint()..color = const Color(0xFFFDA4AF));
+    canvas.restore();
+
+    // 6. Kepala Kancil & Pipi Berbulu
+    final headPath = Path()
+      ..moveTo(40, 51)
+      ..cubicTo(41, 29, 99, 29, 100, 51)
+      ..cubicTo(105, 56, 106, 63, 101, 67)
+      ..cubicTo(103, 70, 99, 75, 94, 76)
+      ..cubicTo(87, 82, 79, 84, 70, 84)
+      ..cubicTo(61, 84, 53, 82, 46, 76)
+      ..cubicTo(41, 75, 37, 70, 39, 67)
+      ..cubicTo(34, 63, 35, 56, 40, 51)
+      ..close();
+    canvas.drawPath(headPath, Paint()..color = const Color(0xFFF59E0B));
+    canvas.drawPath(headPath, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5);
+
+    // Garis belang kening kancil
+    final crownPath = Path()
+      ..moveTo(65, 33)
+      ..quadraticBezierTo(70, 45, 70, 51)
+      ..quadraticBezierTo(70, 45, 75, 33)
+      ..close();
+    canvas.drawPath(crownPath, Paint()..color = const Color(0xFFB45309).withValues(alpha: 0.55));
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(70, 41), width: 7.6, height: 12.4),
+      Paint()..color = const Color(0xFFFFFBEB).withValues(alpha: 0.9),
+    );
+
+    // Topeng Krem Hangat Kancil (Heart-Shaped Muzzle)
+    final maskPath = Path()
+      ..moveTo(43, 60)
+      ..cubicTo(43, 49, 58, 47, 70, 53)
+      ..cubicTo(82, 47, 97, 49, 97, 60)
+      ..cubicTo(98, 73, 86, 83, 70, 83)
+      ..cubicTo(54, 83, 42, 73, 43, 60)
+      ..close();
+    canvas.drawPath(maskPath, Paint()..color = const Color(0xFFFFFBEB));
+
+    // Jambul Rambut Kancil di Kening
+    final tuft1 = Path()
+      ..moveTo(63, 33)
+      ..cubicTo(64, 24, 69, 21, 72, 20)
+      ..cubicTo(71, 25, 74, 27, 76, 33);
+    canvas.drawPath(tuft1, Paint()..color = const Color(0xFFF59E0B));
+    canvas.drawPath(tuft1, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round);
+
+    // Pipi Merona Lembut
+    final cheekPaint = Paint()..color = const Color(0xFFFB7185).withValues(alpha: 0.55);
+    canvas.drawOval(Rect.fromCenter(center: const Offset(47, 66), width: 11, height: 6.4), cheekPaint);
+    canvas.drawOval(Rect.fromCenter(center: const Offset(93, 66), width: 11, height: 6.4), cheekPaint);
+
+    // Alis Mata Kancil
+    final browPaint = Paint()
+      ..color = const Color(0xFF451A03)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..strokeCap = StrokeCap.round;
+    final leftBrow = Path()..moveTo(46, 44)..quadraticBezierTo(52, 40.5, 58, 44);
+    final rightBrow = Path()..moveTo(82, 44)..quadraticBezierTo(88, 40.5, 94, 44);
+    canvas.drawPath(leftBrow, browPaint);
+    canvas.drawPath(rightBrow, browPaint);
+
+    // 7. Mata Duolingo Kancil dengan Busur Sian (#00F0FF) & Kedipan
+    final eyeShiftX = lookOffset.dx * 2.5;
+    final eyeShiftY = lookOffset.dy * 1.8;
 
     if (isWinking) {
-      // Mata berkedip garis lengkung
-      final winkPaint = Paint()
-        ..color = const Color(0xFF1E293B)
+      // Garis mata berkedip
+      final winkStroke = Paint()
+        ..color = const Color(0xFF0F172A)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
+        ..strokeWidth = 2.8
         ..strokeCap = StrokeCap.round;
-      canvas.drawArc(
-        const Rect.fromLTWH(34, 42, 10, 8),
-        0,
-        math.pi,
-        false,
-        winkPaint,
-      );
+      final leftWink = Path()..moveTo(46.5, 56.5)..quadraticBezierTo(54, 60, 61.5, 56.5);
+      final rightWink = Path()..moveTo(78.5, 56.5)..quadraticBezierTo(86, 60, 93.5, 56.5);
+      canvas.drawPath(leftWink, winkStroke);
+      canvas.drawPath(rightWink, winkStroke);
     } else {
-      canvas.drawCircle(const Offset(38, 44), 6, eyePaint);
-      canvas.drawCircle(
-          Offset(38 + eyeShiftX, 44 + eyeShiftY), 2.5, pupilPaint);
+      // Mata Kiri
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(54, 56), width: 15.2, height: 16.8),
+        Paint()..color = Colors.white,
+      );
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(54, 56), width: 15.2, height: 16.8),
+        Paint()
+          ..color = const Color(0xFF0F172A)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2,
+      );
+
+      // Garis bulu mata atas
+      final leftLash = Path()..moveTo(45.8, 53.5)..cubicTo(48, 47, 59, 47, 61.8, 53.5);
+      canvas.drawPath(leftLash, Paint()
+        ..color = const Color(0xFF0F172A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.8
+        ..strokeCap = StrokeCap.round);
+
+      // Pupil & Busur Sian Kiri
+      final leftPupilCenter = Offset(54 + eyeShiftX, 56 + eyeShiftY);
+      canvas.drawCircle(leftPupilCenter, 5.4, Paint()..color = const Color(0xFF0F172A));
+      // Busur radian sian bawah
+      final leftIrisArc = Path()
+        ..addArc(
+          Rect.fromCircle(center: leftPupilCenter, radius: 4.0),
+          0.2 * math.pi,
+          0.6 * math.pi,
+        );
+      canvas.drawPath(leftIrisArc, Paint()
+        ..color = const Color(0xFF00F0FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..strokeCap = StrokeCap.round);
+      // Kilau cahaya putih mata
+      canvas.drawCircle(leftPupilCenter + const Offset(1.8, -2.4), 2.0, Paint()..color = Colors.white);
+      canvas.drawCircle(leftPupilCenter + const Offset(-2.0, 2.2), 1.0, Paint()..color = Colors.white);
+
+      // Mata Kanan
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(86, 56), width: 15.2, height: 16.8),
+        Paint()..color = Colors.white,
+      );
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(86, 56), width: 15.2, height: 16.8),
+        Paint()
+          ..color = const Color(0xFF0F172A)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2,
+      );
+
+      final rightLash = Path()..moveTo(78.2, 53.5)..cubicTo(81, 47, 92, 47, 94.2, 53.5);
+      canvas.drawPath(rightLash, Paint()
+        ..color = const Color(0xFF0F172A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.8
+        ..strokeCap = StrokeCap.round);
+
+      // Pupil & Busur Sian Kanan
+      final rightPupilCenter = Offset(86 + eyeShiftX, 56 + eyeShiftY);
+      canvas.drawCircle(rightPupilCenter, 5.4, Paint()..color = const Color(0xFF0F172A));
+      final rightIrisArc = Path()
+        ..addArc(
+          Rect.fromCircle(center: rightPupilCenter, radius: 4.0),
+          0.2 * math.pi,
+          0.6 * math.pi,
+        );
+      canvas.drawPath(rightIrisArc, Paint()
+        ..color = const Color(0xFF00F0FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..strokeCap = StrokeCap.round);
+      canvas.drawCircle(rightPupilCenter + const Offset(1.8, -2.4), 2.0, Paint()..color = Colors.white);
+      canvas.drawCircle(rightPupilCenter + const Offset(-2.0, 2.2), 1.0, Paint()..color = Colors.white);
     }
 
-    // Mata kanan
-    canvas.drawCircle(const Offset(62, 44), 6, eyePaint);
-    canvas.drawCircle(
-        Offset(62 + eyeShiftX, 44 + eyeShiftY), 2.5, pupilPaint);
+    // 8. Hidung Beludru Cokelat & Senyum Ramah
+    final nosePath = Path()
+      ..moveTo(65.5, 62.5)
+      ..cubicTo(65.5, 60, 74.5, 60, 74.5, 62.5)
+      ..cubicTo(74.5, 65.2, 71.8, 67, 70, 67)
+      ..cubicTo(68.2, 67, 65.5, 65.2, 65.5, 62.5)
+      ..close();
+    canvas.drawPath(nosePath, Paint()..color = const Color(0xFF271206));
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(68.6, 62), width: 3.2, height: 1.7),
+      Paint()..color = Colors.white.withValues(alpha: 0.75),
+    );
 
-    // Senyum ramah
-    final smilePaint = Paint()
-      ..color = const Color(0xFF78350F)
+    // Philtrum
+    canvas.drawLine(
+      const Offset(70, 67),
+      const Offset(70, 70.2),
+      Paint()
+        ..color = const Color(0xFF451A03)
+        ..strokeWidth = 1.9
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Senyuman
+    if (mood == HakkiMood.celebrating) {
+      final happyMouth = Path()
+        ..moveTo(63, 70)
+        ..quadraticBezierTo(70, 78, 77, 70)
+        ..close();
+      canvas.drawPath(happyMouth, Paint()..color = const Color(0xFF9F1239));
+      canvas.drawPath(happyMouth, Paint()
+        ..color = const Color(0xFF0F172A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.9);
+      // Lidah merah muda
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(70, 74), width: 6, height: 3.5),
+        Paint()..color = const Color(0xFFFB7185),
+      );
+    } else {
+      final smile = Path()
+        ..moveTo(63.5, 70.2)
+        ..quadraticBezierTo(66.8, 73.8, 70, 70.5)
+        ..quadraticBezierTo(73.2, 73.8, 76.5, 70.2);
+      canvas.drawPath(smile, Paint()
+        ..color = const Color(0xFF0F172A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.1
+        ..strokeCap = StrokeCap.round);
+    }
+
+    // 9. Cakar Kiri Memegang Kitab Hukum ("KUHP / UU")
+    canvas.save();
+    canvas.translate(33, 93);
+    canvas.rotate(-14 * math.pi / 180);
+    canvas.translate(-33, -93);
+
+    // Lembaran Halaman Buku (Kertas Putih-Krem di Sisi Kanan)
+    final pagesRect = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(37, 83, 5, 20),
+      const Radius.circular(1.5),
+    );
+    canvas.drawRRect(pagesRect, Paint()..color = const Color(0xFFFEF3C7));
+    canvas.drawRRect(pagesRect, Paint()
+      ..color = const Color(0xFF0F172A)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round;
-    final smilePath = Path()
-      ..moveTo(44, 66)
-      ..quadraticBezierTo(50, 72, 56, 66);
-    canvas.drawPath(smilePath, smilePaint);
+      ..strokeWidth = 1.2);
+
+    // Cover Buku Hukum (Navy Pekat Neo-Brutalis)
+    final bookRect = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(23, 82, 17, 22),
+      const Radius.circular(3),
+    );
+    canvas.drawRRect(bookRect, Paint()..color = const Color(0xFF13294B));
+    canvas.drawRRect(bookRect, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0);
+
+    // Border Emas Lambang Statuta di Cover
+    final bookGoldBorder = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(25.5, 84.5, 12, 17),
+      const Radius.circular(1.8),
+    );
+    canvas.drawRRect(bookGoldBorder, Paint()
+      ..color = const Color(0xFFFBBF24)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0);
+
+    // Simbol Neraca Keadilan Emas di Cover
+    canvas.drawLine(const Offset(29, 92), const Offset(34, 92), Paint()
+      ..color = const Color(0xFFFBBF24)
+      ..strokeWidth = 1.2);
+    canvas.drawLine(const Offset(31.5, 89), const Offset(31.5, 96), Paint()
+      ..color = const Color(0xFFFBBF24)
+      ..strokeWidth = 1.2);
+
+    // Pita pembatas buku sian
+    final ribbon = Path()
+      ..moveTo(31.5, 104)
+      ..lineTo(30.5, 112)
+      ..lineTo(33, 110)
+      ..lineTo(35.5, 112)
+      ..lineTo(34.5, 104)
+      ..close();
+    canvas.drawPath(ribbon, Paint()..color = const Color(0xFF00F0FF));
+    canvas.drawPath(ribbon, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0);
+
+    // Cakar kancil mencengkeram buku
+    final pawLeft = Path()
+      ..addOval(Rect.fromCenter(center: const Offset(37, 93), width: 11, height: 9));
+    canvas.drawPath(pawLeft, Paint()..color = const Color(0xFFF59E0B));
+    canvas.drawPath(pawLeft, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0);
+    canvas.drawCircle(const Offset(36, 91.5), 1.2, Paint()..color = const Color(0xFFFEF3C7));
+    canvas.drawCircle(const Offset(38.5, 92.5), 1.2, Paint()..color = const Color(0xFFFEF3C7));
+    canvas.restore();
+
+    // 10. Cakar Kanan Melambai Ramah dengan Lambaian Dinamis
+    final waveDeg = (waveHand - 0.5) * 20.0;
+    canvas.save();
+    canvas.translate(104, 82);
+    canvas.rotate(waveDeg * math.pi / 180);
+    canvas.translate(-104, -82);
+
+    // Garis Lambaian Dinamis (Motion Lines Sian)
+    final motionLine1 = Path()
+      ..moveTo(111, 74)
+      ..quadraticBezierTo(114, 78, 112, 82);
+    canvas.drawPath(
+      motionLine1,
+      Paint()
+        ..color = const Color(0xFF00F0FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round,
+    );
+
+    final pawRight = Path()
+      ..addOval(Rect.fromCenter(center: const Offset(104, 82), width: 13, height: 11));
+    canvas.drawPath(pawRight, Paint()..color = const Color(0xFFF59E0B));
+    canvas.drawPath(pawRight, Paint()
+      ..color = const Color(0xFF0F172A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2);
+
+    // Bantalan cakar krem & kuku
+    canvas.drawCircle(const Offset(104, 81.5), 2.3, Paint()..color = const Color(0xFFFEF3C7));
+    canvas.drawCircle(const Offset(101.5, 78), 1.2, Paint()..color = const Color(0xFFFEF3C7));
+    canvas.drawCircle(const Offset(104, 77.2), 1.2, Paint()..color = const Color(0xFFFEF3C7));
+    canvas.drawCircle(const Offset(106.5, 78.5), 1.2, Paint()..color = const Color(0xFFFEF3C7));
+    canvas.restore();
 
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _HakkiVectorPainter oldDelegate) {
+  bool shouldRepaint(covariant _HakkiVectorMasterPainter oldDelegate) {
     return oldDelegate.mood != mood ||
-        oldDelegate.earWiggle != earWiggle ||
+        oldDelegate.earTwitch != earTwitch ||
+        oldDelegate.waveHand != waveHand ||
         oldDelegate.isWinking != isWinking ||
         oldDelegate.lookOffset != lookOffset;
   }

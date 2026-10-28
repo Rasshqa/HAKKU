@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 
@@ -8,57 +9,75 @@ import '../../core/constants/app_colors.dart';
 class EmergencyScreen extends StatelessWidget {
   const EmergencyScreen({super.key});
 
+  void _close(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Row(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _close(context);
+      },
+      child: Scaffold(
+        backgroundColor: HakkuColors.background,
+        appBar: AppBar(
+          title: const Text('Bantuan Kedaruratan'),
+          backgroundColor: HakkuColors.cardSurface,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => _close(context),
+          ),
+        ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: HakkuColors.dangerLight,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.warning_amber_rounded,
-                    color: HakkuColors.danger,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Butuh Bantuan Segera?',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(color: HakkuColors.danger),
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: HakkuColors.dangerLight,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      Text(
-                        'Hubungi layanan darurat berikut',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: HakkuColors.danger,
+                        size: 28,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Butuh Bantuan Segera?',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(color: HakkuColors.danger),
+                          ),
+                          Text(
+                            'Hubungi layanan darurat berikut',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                  color: HakkuColors.textMuted,
-                ),
-              ],
-            ),
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 16),
@@ -157,13 +176,15 @@ class EmergencyScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => _close(context),
                 child: const Text('Tutup'),
               ),
             ),
           ],
         ),
       ),
+    ),
+    ),
     );
   }
 }

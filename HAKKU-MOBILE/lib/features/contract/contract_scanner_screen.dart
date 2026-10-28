@@ -92,6 +92,16 @@ class _ContractScannerScreenState extends State<ContractScannerScreen> {
         backgroundColor: HakkuColors.cardSurface,
         elevation: 0,
         centerTitle: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/perangkat');
+            }
+          },
+        ),
         actions: [
           IconButton(
             tooltip: 'Panduan Pemeriksaan',
@@ -545,18 +555,19 @@ class _ContractScannerScreenState extends State<ContractScannerScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
+      child: Material(
         color: HakkuColors.cardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: finding.severity == ClauseRiskSeverity.highRisk
-              ? HakkuColors.danger.withValues(alpha: 0.3)
-              : HakkuColors.border,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: finding.severity == ClauseRiskSeverity.highRisk
+                ? HakkuColors.danger.withValues(alpha: 0.3)
+                : HakkuColors.border,
+          ),
         ),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
           initiallyExpanded: index == 0,
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -728,6 +739,7 @@ class _ContractScannerScreenState extends State<ContractScannerScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

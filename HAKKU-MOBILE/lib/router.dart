@@ -13,11 +13,49 @@ import 'features/cases/cases_list_screen.dart';
 import 'features/cases/case_detail_screen.dart';
 import 'features/emergency/emergency_screen.dart';
 import 'features/home/intake_flow_screen.dart';
+import 'features/auth/onboarding_screen.dart';
+import 'features/auth/login_screen.dart';
+import 'features/splash/splash_screen.dart';
 import 'core/constants/app_colors.dart';
+import 'core/storage/local_storage.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/splash',
+  redirect: (context, state) {
+    final bool loggedIn = LocalStorage.isLoggedIn();
+    final bool onboardingDone = LocalStorage.getOnboardingCompleted();
+    final String location = state.uri.path;
+
+    final bool isSplash = location == '/splash';
+    final bool isLogin = location == '/login';
+    final bool isOnboarding = location == '/onboarding';
+
+    // Splash mengontrol delay & navigasi awal
+    if (isSplash) return null;
+
+    // User diwajibkan login sebelum menggunakan aplikasi
+    if (!loggedIn) {
+      return isLogin ? null : '/login';
+    }
+
+    // Setelah login pertama kali, arahkan ke onboarding screen
+    if (!onboardingDone) {
+      return isOnboarding ? null : '/onboarding';
+    }
+
+    // Jika sudah login dan selesai onboarding, jangan kembali ke login
+    if (isLogin) {
+      return '/';
+    }
+
+    return null;
+  },
   routes: [
+    // Splash Screen
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return _ScaffoldWithBottomNav(navigationShell: navigationShell);
@@ -31,7 +69,9 @@ final appRouter = GoRouter(
             routes: [
               GoRoute(
                 path: 'intake',
-                builder: (context, state) => const IntakeFlowScreen(),
+                builder: (context, state) => IntakeFlowScreen(
+                  initialStory: state.extra as String?,
+                ),
               ),
             ],
           ),
@@ -40,7 +80,9 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/konsultasi',
-            builder: (context, state) => const ConsultationScreen(),
+            builder: (context, state) => ConsultationScreen(
+              initialMessage: state.extra as String?,
+            ),
           ),
         ]),
         // Tab 3: Instrumen Hukum
@@ -95,12 +137,23 @@ final appRouter = GoRouter(
       path: '/tentang',
       builder: (context, state) => const AboutScreen(),
     ),
-    // Modal Darurat
+    // Kedaruratan
     GoRoute(
       path: '/darurat',
-      pageBuilder: (context, state) => DialogPage(
-        builder: (_) => const EmergencyScreen(),
+      pageBuilder: (context, state) => const MaterialPage(
+        fullscreenDialog: true,
+        child: EmergencyScreen(),
       ),
+    ),
+    // Onboarding / Introduksi Duolingo
+    GoRoute(
+      path: '/onboarding',
+      builder: (context, state) => const OnboardingScreen(),
+    ),
+    // Masuk / Login Duolingo
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginScreen(),
     ),
   ],
 );
@@ -139,16 +192,23 @@ class _HakkuBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
+        color: Colors.white,
         border: Border(
-          top: BorderSide(color: HakkuColors.border, width: 1),
+          top: BorderSide(color: HakkuColors.border, width: 1.5),
         ),
       ),
       child: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: onTap,
+        backgroundColor: Colors.white,
+        selectedItemColor: HakkuColors.primary,
+        unselectedItemColor: HakkuColors.textMuted,
         type: BottomNavigationBarType.fixed,
+        elevation: 0,
         selectedFontSize: 11,
         unselectedFontSize: 11,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),

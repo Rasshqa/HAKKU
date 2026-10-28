@@ -1,42 +1,60 @@
 import 'package:flutter/material.dart';
 
-/// Design tokens resmi HAKKU — sesuai design brief
+/// Design tokens resmi HAKKU — identik dengan arsitektur web HAKKU
+/// Palet Deep Navy, Neo-Brutalist Obsidian Border, dan Aksen Sian Hakki
 class HakkuColors {
   HakkuColors._();
 
-  // Primary — Navy Blue
-  static const Color primary = Color(0xFF005BBB);
-  static const Color primaryHover = Color(0xFF004691);
-  static const Color primaryLight = Color(0xFFE8F0FE);
+  // Primary — Deep Navy (#1B365D) identik dengan versi website
+  static const Color primary = Color(0xFF1B365D);
+  static const Color primaryHover = Color(0xFF13294B);
+  static const Color primaryLight = Color(0xFFE8EEF5);
 
-  // Accent — Amber
-  static const Color accent = Color(0xFFFF8C00);
-  static const Color accentHover = Color(0xFFE07B00);
-  static const Color accentLight = Color(0xFFFFF3E0);
+  // Accent — Sian Maskot Hakki & Aksen Sorotan
+  static const Color accent = Color(0xFF00F0FF);
+  static const Color accentHover = Color(0xFF00D4E2);
+  static const Color accentLight = Color(0xFFE0F2FE);
+  static const Color cyanMuted = Color(0xFF93C5FD);
 
-  // Status
-  static const Color success = Color(0xFF137333);
-  static const Color successLight = Color(0xFFE6F4EA);
-  static const Color warning = Color(0xFF8A4B08);
-  static const Color warningLight = Color(0xFFFEF7E0);
-  static const Color danger = Color(0xFFB3261E);
-  static const Color dangerLight = Color(0xFFFCE8E6);
+  // Status Statuter & Legal Alerts
+  static const Color success = Color(0xFF0D9488);
+  static const Color successLight = Color(0xFFCCFBF1);
+  static const Color warning = Color(0xFFB45309);
+  static const Color warningLight = Color(0xFFFEF3C7);
+  static const Color danger = Color(0xFFDC2626);
+  static const Color dangerLight = Color(0xFFFEE2E2);
 
-  // Surface & Background
-  static const Color background = Color(0xFFF9FAFB);
+  // Surface & Background (Canvas Dingin Arsitektural)
+  static const Color background = Color(0xFFF8F9FA);
   static const Color cardSurface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF1F3F4);
+  static const Color surfaceVariant = Color(0xFFF1F5F9);
 
-  // Text
-  static const Color textMain = Color(0xFF202124);
-  static const Color textMuted = Color(0xFF5F6368);
+  // Typography — Kontras Tinggi WCAG AA
+  static const Color textMain = Color(0xFF0F172A);
+  static const Color textMuted = Color(0xFF475569);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
 
-  // Border
-  static const Color border = Color(0xFFDADCE0);
-  static const Color borderFocus = Color(0xFF005BBB);
+  // Garis Tepi Neo-Brutalisme (Tegas & Presisi)
+  static const Color border = Color(0xFF0F172A);
+  static const Color borderSubtle = Color(0xFFE2E8F0);
+  static const Color borderFocus = Color(0xFF1B365D);
 
-  // Emergency
-  static const Color emergency = Color(0xFFB3261E);
-  static const Color emergencyLight = Color(0xFFFCE8E6);
+  // Jalur Cepat Darurat
+  static const Color emergency = Color(0xFFDC2626);
+  static const Color emergencyLight = Color(0xFFFEE2E2);
+
+  // Helper Bayangan Neo-Brutalis Tanpa Blur (Hard Offset Shadow)
+  static List<BoxShadow> neoShadow({
+    Color color = const Color(0xFF1B365D),
+    double offset = 4.0,
+  }) {
+    return [
+      BoxShadow(
+        color: color,
+        offset: Offset(offset, offset),
+        blurRadius: 0,
+        spreadRadius: 0,
+      ),
+    ];
+  }
 }

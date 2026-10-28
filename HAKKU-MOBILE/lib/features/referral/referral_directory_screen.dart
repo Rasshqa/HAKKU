@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../domain/referral/referral_models.dart';
@@ -83,19 +84,37 @@ class _ReferralDirectoryScreenState extends State<ReferralDirectoryScreen> {
     }
   }
 
+  void _navigateBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/perangkat');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: HakkuColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'Direktori Bantuan Hukum (LBH)',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _navigateBack();
+      },
+      child: Scaffold(
+        backgroundColor: HakkuColors.background,
+        appBar: AppBar(
+          title: const Text(
+            'Direktori Bantuan Hukum (LBH)',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: HakkuColors.cardSurface,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _navigateBack,
+          ),
         ),
-        backgroundColor: HakkuColors.cardSurface,
-        elevation: 0,
-      ),
-      body: Column(
+        body: Column(
         children: [
           _buildSearchAndFilters(),
           Expanded(
@@ -112,6 +131,7 @@ class _ReferralDirectoryScreenState extends State<ReferralDirectoryScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
