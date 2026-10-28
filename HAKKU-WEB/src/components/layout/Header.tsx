@@ -15,6 +15,7 @@ interface NavLink {
 const PRIMARY_LINKS: NavLink[] = [
   { href: "/pendampingan", label: "Pendampingan", isAi: true },
   { href: "/konsultasi", label: "Wawancara", isAi: true },
+  { href: "/ongoing", label: "Perkara Berjalan" },
   { href: "/kontrak", label: "Cek Kontrak" },
   { href: "/kalkulator", label: "Kalkulator PHK" },
   { href: "/dokumen", label: "Draf Surat" },
