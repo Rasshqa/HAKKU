@@ -238,7 +238,7 @@ LLM_PROVIDER=mock
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # Basis Data Neon Postgres (Opsional, fallback otomatis ke in-memory jika kosong)
-DATABASE_URL=postgres://user:password@ep-cool-branch-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgres://user:your_password@ep-example-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
 
 # Neon Auth (Opsional untuk login/daftar terkelola)
 NEON_AUTH_BASE_URL=https://auth.neon.tech
