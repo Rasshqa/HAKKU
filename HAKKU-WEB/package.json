@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
-    "@neondatabase/auth": "^0.6.0-beta",
+    "@neondatabase/auth": "^0.7.0-beta",
     "clsx": "^2.1.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
